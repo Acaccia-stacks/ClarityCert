@@ -1,0 +1,3 @@
+[submodule "clarity-vision"]
+	path = clarity-vision
+	url = git@github.com:stx-labs/clarity-vision.git
