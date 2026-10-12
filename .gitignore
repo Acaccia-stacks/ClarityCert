@@ -1,0 +1,28 @@
+# Rocq build artifacts
+*.vo
+*.vos
+*.vok
+*.glob
+*.aux
+.*.aux
+.lia.cache
+.nia.cache
+.Makefile.rocq.d
+Makefile.rocq
+Makefile.rocq.conf
+*.d
+
+# Nix
+result
+result-*
+.direnv/
+
+# Generated documentation
+html/
+
+# Editors / OS
+.DS_Store
+*~
+\#*\#
+.\#*
+.vscode/
