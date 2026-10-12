@@ -1,4 +1,4 @@
-# clarity_verif
+# clarity-verif
 
 A Rocq formalization used to check the specification of Clarity vNEXT,
 the next version of the [Clarity](https://docs.stacks.co/clarity)
@@ -21,6 +21,7 @@ theories/              Rocq sources (logical root: ClarityVerif)
   Std/                   The standard library prelude (as Clarity AST) and its properties
   Metatheory/            Type safety, termination, determinism, read-only safety
   Conformance/           Concrete contracts with expected outcomes
+docs/motivation.md     Why formalize the spec; what comparable chains do
 docs/design.md         How the formalization is organized, and why
 docs/findings.md       Issues found in the specification
 flake.nix              Nix toolchain (Rocq 9.3 + Stdlib), package and checks
