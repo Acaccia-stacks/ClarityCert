@@ -1,7 +1,8 @@
 (** * Context and chain-data primitives
 
-    Semantics of spec 3.9: nullary context values and total chain-data
-    lookups. *)
+    Semantics of spec 3.9: the [get-current-context] record, with its
+    frame-scoped [sender], [caller] and [contract] fields, and the total
+    chain-data lookups. *)
 
 From ClarityVerif Require Import
   Common.Base

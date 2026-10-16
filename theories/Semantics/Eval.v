@@ -1,8 +1,9 @@
 (** * Dynamic semantics
 
     Evaluation of instances (spec 2.7): strict left-to-right evaluation,
-    outcomes (value, early [return], abort), public-call rollback,
-    context frames, depth and reentrancy, deploy-time initialization
+    outcomes (value, early [return], abort), rollback of every public
+    function invocation, internal calls included (2.6.1, 2.7.3), context
+    frames, depth and reentrancy, deploy-time code in source order
     (2.4.2). *)
 
 From ClarityVerif Require Import

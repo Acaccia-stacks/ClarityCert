@@ -2,7 +2,7 @@
 
     The host functions the semantics is parameterized by: storage, assets,
     transaction context, chain-data lookups (total, spec 3.9), contract
-    calls, events. Every primitive that passes the host-access test of the
+    calls, state frames (2.7.3), events. Every primitive that passes the host-access test of the
     layering rule is defined in terms of this interface. *)
 
 From ClarityVerif Require Import

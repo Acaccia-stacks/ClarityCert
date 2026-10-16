@@ -16,7 +16,7 @@ theories/              Rocq sources (logical root: ClarityVerif)
   Syntax/                Lexical rules, types, values, abstract syntax
   Host/                  Abstract chain ABI: crypto, wire format, host functions
   Typing/                Subtyping, instantiation, inline expansion, typing, static checks
-  Primitives/            Signatures and semantics of the 82 core primitives
+  Primitives/            Signatures and semantics of the 70 core primitives
   Semantics/             Execution state, allowances, evaluation
   Std/                   The standard library prelude (as Clarity AST) and its properties
   Metatheory/            Type safety, termination, determinism, read-only safety
@@ -38,28 +38,31 @@ Section numbers refer to the chapters in `clarity-vision/spec/`.
 | Spec section | Rocq module |
 |--------------|-------------|
 | 1 Design principles (P1–P8) | `Metatheory/*` (the properties they promise) |
-| 2.2 Lexical structure | `Syntax/Lexical.v` |
+| 2.2 Lexical structure, keywords and reserved names | `Syntax/Lexical.v`, `Typing/StaticChecks.v` |
 | 2.3.1, 2.3.3–2.3.6 Types, storable/interface types, variables, aliases, reference kinds | `Syntax/Types.v` |
 | 2.3.2 Subtyping and lub | `Typing/Subtyping.v` |
+| 2.4.0 Version declaration | `Syntax/Ast.v`, `Typing/StaticChecks.v` |
 | 2.4.1–2.4.2 Definitions, top-level expressions; 2.5 Expression forms | `Syntax/Ast.v`, `Typing/Typing.v` |
-| 2.4.3 Acyclic definition graph; 2.4.5 Prelude names; 2.5.2 No shadowing | `Typing/StaticChecks.v` |
+| 2.4.2 Deploy order; 2.4.3 Acyclic definition graph; 2.4.5 Prelude names; 2.5.2 No shadowing | `Typing/StaticChecks.v` |
 | 2.4.4 Contract interface | `Host/Abi.v` |
 | 2.5.9 Context scoping and allowances | `Semantics/Allowances.v`, `Semantics/Eval.v` |
+| 2.6.1 Visibility (every public invocation rolls back on `err`) | `Semantics/Eval.v` |
 | 2.6.2 Instantiation and overload resolution | `Typing/Instantiation.v` |
 | 2.6.3 Inline functions | `Typing/Inline.v` |
 | 2.6.4 Result type inference; 2.6.5 Rest parameters | `Typing/Typing.v`, `Typing/Instantiation.v` |
 | 2.7 Dynamic semantics | `Semantics/State.v`, `Semantics/Eval.v` |
 | 2.7.4 Read-only enforcement | `Typing/StaticChecks.v`, `Metatheory/ReadOnly.v` |
 | 2.8 Limits | `Common/Limits.v` |
+| 2.9, 3.12 Open questions | none until decided |
 | 3 Primitive signatures | `Primitives/Signatures.v` |
 | 3.1–3.2 Arithmetic, comparison | `Primitives/Arith.v` |
 | 3.3 Sequences | `Primitives/Sequences.v` |
-| 3.4 Conversions and serialization | `Primitives/Conversions.v` |
+| 3.4 Conversions, serialization, Bitcoin transaction parsing | `Primitives/Conversions.v` |
 | 3.5 Principals | `Primitives/Principals.v` |
 | 3.6 Cryptography | `Primitives/Crypto.v`, `Host/Crypto.v` |
 | 3.7 Storage | `Primitives/Storage.v` |
 | 3.8 Assets | `Primitives/Assets.v` |
-| 3.9 Context and chain data | `Primitives/Context.v` |
+| 3.9 Transaction and chain context | `Primitives/Context.v`, `Host/Interface.v` |
 | 3.10 Events and control | `Primitives/Control.v` |
 | 4 Standard library, `std/prelude.clar` | `Std/Prelude.v`, `Std/Properties.v` |
 | Chain ABI (separate document) | `Host/*` (abstract) |

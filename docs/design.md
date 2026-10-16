@@ -24,7 +24,7 @@ for the project and its phases are in [motivation.md](motivation.md).
 
 ## Core and standard library are separate layers
 
-The spec defines a small core (special forms and 82 primitives) and a
+The spec defines a small core (special forms and 70 primitives) and a
 standard library written in Clarity (`prelude.clar`), whose source is its
 specification. The formalization mirrors this:
 
@@ -40,16 +40,23 @@ specification. The formalization mirrors this:
 
 Overloading, generics, reference kinds, rest parameters and inline
 functions are resolved by instantiation (spec 2.6.2), and generic bodies
-are type-checked only per instance ("template semantics"). The typing
-pipeline is therefore:
+are type-checked only per instance ("template semantics"). The one
+exception is the definition graph: it is over names, computed from the
+source alone, and checked before any instance exists (2.4.3), which is
+what makes instantiation and inline expansion finite. The typing pipeline
+is therefore:
 
-1. `Typing/Subtyping.v`: the subtyping lattice and `lub`.
-2. `Typing/Instantiation.v`: least instantiation, overload resolution, the
+1. `Typing/StaticChecks.v`, name-level part: version declaration (2.4.0),
+   keywords and reserved names (2.2), scoping and no shadowing (2.5.2),
+   the acyclic definition graph (2.4.3) and the deploy-order check
+   (2.4.2).
+2. `Typing/Subtyping.v`: the subtyping relation and `lub`.
+3. `Typing/Instantiation.v`: least instantiation, overload resolution, the
    capped fold-accumulator fixpoint.
-3. `Typing/Inline.v`: call-by-name expansion of inline functions.
-4. `Typing/Typing.v`: typing judgments on instances.
-5. `Typing/StaticChecks.v`: contract-level rules (acyclic definition graph,
-   no shadowing, read-only, responses handled).
+4. `Typing/Inline.v`: call-by-name expansion of inline functions.
+5. `Typing/Typing.v`: typing judgments on instances.
+6. `Typing/StaticChecks.v`, instance-level part: responses handled,
+   `impl-trait` conformance, read-only enforcement.
 
 The dynamic semantics (`Semantics/Eval.v`) also evaluates instances.
 
@@ -94,7 +101,8 @@ written directly in Rocq, with no parser generator. It has two layers:
    `{ name: expr, ... }`, `0x` buffers, `u"..."` strings, principal
    literals (`'SP...`, `.name`), and the spread suffix `e...`.
 2. **AST builder**: S-expressions to `Syntax/Ast.v`, checking the shape of
-   each form (definitions, `match` arms, allowances).
+   each form (the leading `clarity-version`, definitions, `match` arms,
+   allowances).
 
 They will live in `Syntax/Sexp.v` and `Syntax/Parser.v` once the spec's
 grammar settles. `Syntax/Lexical.v` holds the lexical well-formedness
