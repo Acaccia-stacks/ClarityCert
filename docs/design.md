@@ -1,8 +1,26 @@
 # Design of the formalization
 
-How the Rocq development is organized, and why. The layout follows the
-structure of the specification, pinned as the `clarity-vision/`
-submodule.
+How the Rocq development is organized, how it connects to the Rust
+production compiler, and why. The layout follows the structure of the
+specification, pinned as the `clarity-vision/` submodule. The rationale
+for the project and its phases are in [motivation.md](motivation.md).
+
+## Principles
+
+- **The prose spec is normative.** The formal semantics is a precise
+  reading of it. Where the two disagree, the disagreement is a finding
+  ([findings.md](findings.md)) settled in the spec, not an automatic win
+  for Rocq. This matches the spec plan: for the core language, the prose
+  rule is normative.
+- **Rocq is the reference, Rust is the product.** The production compiler
+  is written in Rust. This development is what it is checked against, and
+  stays out of the production path.
+- **Everything executable is extracted from what is proved.** The parser,
+  type checker and evaluator are Rocq functions proved against the rules,
+  then extracted, so the tools used for testing compute exactly what the
+  proofs are about.
+
+# Part I. The Rocq development
 
 ## Core and standard library are separate layers
 
@@ -63,7 +81,7 @@ each file can be reviewed against one table.
 |---|---|---|
 | `TypeSafety.v` | Well-typed instances never get stuck | 2.7.1, P7 |
 | `Termination.v` | Evaluation, instantiation and inline expansion terminate | P1, 2.4.3 |
-| `Determinism.v` | Evaluation is a function of its inputs | 2.7.1, P7 |
+| `Determinism.v` | Evaluation is a function of its inputs; typing is unique | 2.7.1, P7, 2.6.2 |
 | `ReadOnly.v` | Read-only code performs no writes | 2.7.4 |
 
 ## Parsing is formalized in Rocq
@@ -82,13 +100,17 @@ They will live in `Syntax/Sexp.v` and `Syntax/Parser.v` once the spec's
 grammar settles. `Syntax/Lexical.v` holds the lexical well-formedness
 rules already stated (2.2). Writing the parser in Rocq keeps it inside the
 proved part of the development: a print/parse round-trip property can be
-proved, and the test oracle does not have to trust a hand-written parser.
+proved, and the direct evaluator does not have to trust a hand-written
+parser.
 
-## The semantics is executable: the test oracle
+## The direct evaluator
 
 The architecture calls for "a direct evaluator of the spec's semantics,
 used only as a test oracle" to differentially test and fuzz the compiler
-(architecture, section 6). This development provides it.
+(architecture, section 6). This development provides it, extracted from
+the formal semantics. It is an interpreter for vNEXT: it parses a
+contract, type-checks it, and evaluates calls directly on the checked
+program, with no compilation and no Wasm.
 
 ### How it is built
 
@@ -109,60 +131,270 @@ used only as a test oracle" to differentially test and fuzz the compiler
 - **Extraction.** Parser, type checker and evaluator are extracted to
   OCaml, with Clarity's 128-bit integers represented as arbitrary
   precision integers (zarith) and overflow checked as the semantics
-  specifies. OCaml is only the oracle's implementation language; the
-  compiler under test targets WebAssembly.
-- **Packaging.** The flake builds a `clarity-oracle` command. It takes a
-  contract, an initial chain state and a sequence of calls, and outputs
-  the outcome as JSON: a compile error class, or the results, events,
-  asset movements and aborts of each call. This matches the content of
-  a language vector in the spec plan.
+  specifies. OCaml is only the direct evaluator's implementation language;
+  the compiler under test targets WebAssembly.
+- **Packaging.** The flake builds the direct evaluator as a
+  `clarity-oracle` command. It takes a contract, an initial chain state
+  and a sequence of calls, and outputs the outcome as JSON: a compile
+  error class, or the results, events, asset movements and aborts of each
+  call. This matches the content of a language vector in the spec plan.
 
 ### How it is used
 
 - **Differential testing of the compiler.** Generated and hand-written
   contracts are run both through the compiler (Wasm on a Wasm engine with
-  a test host) and through the oracle. A disagreement is a compiler bug,
-  or a spec or formalization bug, adjudicated and recorded as P8
-  requires.
-- **Conformance vectors.** Authors write the inputs; the oracle computes
-  the expected outcomes, so every expectation follows from the formal
-  semantics.
+  a test host) and through the direct evaluator. A disagreement is a
+  compiler bug, or a spec or formalization bug, adjudicated and recorded
+  as P8 requires.
+- **Conformance vectors.** Authors write the inputs; the direct evaluator
+  computes the expected outcomes, so every expectation follows from the
+  formal semantics.
 - **Spec exploration.** Edge cases can be run while the spec is a draft,
   before any property about them is proved.
 
-The oracle is never used on chain, and does not compute fuel: vectors do
-not pin fuel (spec plan, conformance suite).
+The direct evaluator is never used on chain, and does not compute fuel:
+vectors do not pin fuel (spec plan, conformance suite).
 
-### Trusted base and main risk
+### Its own trusted base
 
 The proofs guarantee that the extracted code computes the formal
 semantics. Outside them: Rocq extraction, the OCaml compiler, the
 cryptographic libraries, and the in-memory test host. The main practical
-risk is a mismatch between the oracle's test host and the test host used
-for compiled Wasm (initial balances, `contract-call?` dispatch, rollback).
-Both sides must be fed from one shared description of the test chain
-state, eventually derived from the chain ABI.
+risk is a mismatch between the direct evaluator's test host and the test
+host used for compiled Wasm (initial balances, `contract-call?` dispatch,
+rollback). Both sides must be fed from one shared description of the test
+chain state, eventually derived from the chain ABI.
 
-## Future direction: compiler correctness
+## Contract verification: `Logic/`
 
-The compiler targets WebAssembly, which has a mechanized semantics in
-Rocq ([WasmCert-Coq](https://github.com/WasmCert/WasmCert-Coq)). This
-opens two steps once the spec's compilation chapter (plan chapter 6)
-exists:
+The semantics is also what contract authors and auditors prove properties
+against. A `Logic/` part, built in the last phase of the plan, makes that
+practical without unfolding the semantics by hand.
 
-- **Testing against a formal Wasm semantics.** WasmCert extracts to a
-  conformant Wasm interpreter. Running the compiler's output on it in
-  differential tests separates compiler bugs from Wasm engine bugs.
-- **A `Compiler/` development.** A semantics-preservation theorem relating
-  a Clarity program to its compiled module, in the style of CompCert,
-  including the plan's claim that loop bounds guaranteed by source types
-  survive compilation.
+- **Assertions over the execution state.** Predicates on storage (data
+  variables, maps), token balances and supplies, the execution context,
+  and the event and asset-movement logs.
+- **A program logic.** A weakest-precondition calculus over core
+  expressions, in the style of Mi-Cho-Coq for Michelson. It must handle
+  the outcomes of `Semantics/Eval.v`: normal values, early `return`, and
+  aborts, as well as nested state frames with rollback and the allowance
+  check of `as-contract?` and `restrict-assets?`. It is proved sound with
+  respect to `Semantics/Eval.v`.
+- **Contract-level reasoning.** An invariant of a contract holds if it is
+  established at deploy (2.4.2) and preserved by every public function.
+  A public call that returns `err` is rolled back (2.7.3), so only `ok`
+  outcomes need to preserve it. No reentrancy (2.7.5) means a call cannot
+  observe the contract mid-update. Calls to other contracts are reasoned
+  about through the callee's specification, or as arbitrary behavior
+  bounded by the allowances in force.
+- **Reuse of proved facts.** The properties of `Std/Properties.v` serve
+  as ready-made specifications of every prelude function, and termination
+  (`Metatheory/Termination.v`) turns partial-correctness results into
+  total ones.
+- **From source to proof.** A contract is read by the Rocq parser from its
+  source text, so a proof is about that exact text, and attaches to its
+  source hash in the triple the architecture ties analyses to (source
+  hash, compiler version, module hash).
 
-As of this writing, nixpkgs marks WasmCert as broken for Rocq 9.3. Its
-packaging is to be revisited when this work starts.
+The spec plan lists first-class verification annotations (invariants,
+pre- and postconditions) as a language design opportunity. If they are
+adopted, they become goals stated in this logic.
+
+## Libraries
+
+| Use | Library | Where |
+|---|---|---|
+| Integers, strings, lists | Rocq Stdlib | Everywhere |
+| Finite maps (environments, storage), decidable equality | stdpp | `Syntax/`, `Semantics/`, `Host/` |
+| Well-founded recursion and dependent pattern matching, for termination arguments | Equations | `Semantics/Eval.v`, `Typing/Instantiation.v`, `Metatheory/` |
+| Reading and printing S-expressions | Ceres | `Syntax/Sexp.v`, `Syntax/Parser.v` |
+| Monads, for an interpreter with errors and state | ExtLib | `Semantics/Eval.v`, `Typing/` |
+| Extraction to OCaml, 128-bit integers as arbitrary-precision integers | Rocq extraction, zarith | The direct evaluator and the checkers |
+| Formal WebAssembly semantics | WasmCert-Coq | `Compiler/` (phase 4) |
+| Property-based testing inside Rocq | QuickChick | Optional |
+
+All of these are packaged in nixpkgs for the pinned Rocq 9.3, except
+WasmCert-Coq and QuickChick, which are marked broken there. WasmCert-Coq
+supports Rocq 9.0 to 9.2 as of its v2.2.1 release, with a port to newer
+Rocq versions in progress; its packaging is to be revisited when phase 4
+starts. ConCert's typed extraction, which can generate a subset of Rust
+from Rocq, is also broken for 9.3, so every extracted tool is an OCaml
+program run as a separate process.
+
+# Part II. Interface with the Rust compiler
+
+## Crates and their Rocq counterparts
+
+| Crate | Role | Rocq counterpart | Candidate libraries |
+|---|---|---|---|
+| `clarity-syntax` | S-expression reader and AST | `Syntax/Sexp.v`, `Syntax/Parser.v` | Hand-written: the syntax is a regular Lisp |
+| `clarity-types` | Instantiation, inline expansion, typing, static checks; exports its decisions | `Typing/` | `serde` and `serde_json` for the exported record |
+| `clarity-std` | The prelude source and its tests | `Std/` | |
+| `clarity-compiler` | Lowering to Wasm, prelude linking, interface and provenance sections | `Compiler/` (validator) | `wasm-encoder` to emit modules, `wasmparser` to validate them |
+| `clarity-verify` | Rebuilds a module from source and runs the validator | `Compiler/` | |
+| Test harness | Conformance vectors, differential tests, fuzzing | The direct evaluator | `wasmtime` as a test engine with an in-memory host; `proptest` and `cargo-fuzz` to generate contracts |
+
+**Integers.** Clarity's `int` and `uint` are 128-bit, which maps directly
+to Rust's `i128` and `u128` with checked arithmetic: an overflow is an
+abort, as the semantics requires.
+
+**Emitting Wasm.** `wasm-encoder` is preferred to `walrus`:
+
+- it is maintained by the Bytecode Alliance in the `wasm-tools`
+  repository, together with `wasmparser` and `wasm-smith` (random valid
+  modules, for fuzzing at the Wasm level), released in step with them;
+- it is a low-level encoder: the compiler decides every byte and its
+  order, so the byte-identical output the architecture requires for
+  reproducible builds and golden build vectors depends only on the
+  compiler's own code;
+- it imposes no second intermediate representation on a compiler that
+  already has its own.
+
+`walrus` offers a higher-level, editable module representation, but it
+left the archived rustwasm organization in 2025 and mainly serves
+`wasm-bindgen`. One point to settle early: the architecture links hash
+functions compiled from Rust into each module, which means merging
+pre-built Wasm with index renumbering. This must work with `wasmparser`
+and `wasm-encoder`, or the hash functions must be compiled through the
+compiler's own intermediate representation instead.
+
+## Level 1: testing
+
+The compiler's continuous integration runs:
+
+- the conformance vectors, with outcomes computed by the direct
+  evaluator;
+- differential tests and fuzzing: the same contracts and calls run through
+  the compiled Wasm (on `wasmtime`, with a test host) and through
+  `clarity-oracle`, comparing results, events, asset movements and aborts;
+- the front-end comparison of level 2 on every test contract.
+
+The direct evaluator is built by Nix and called as a separate program, so
+the Rust code base does not depend on Rocq.
+
+## Level 2: the front-end checker
+
+`clarity-types` exports, for each contract, a record of its decisions as
+JSON, keyed by source span so that both sides refer to the same
+expression without sharing data structures:
+
+- the instances it created: definition (name and overload), substitution
+  of type, size and reference variables, and inferred result type;
+- the instance each call resolves to;
+- the inferred type of each expression;
+- the order of deploy-time code;
+- the interface emitted in the module;
+- or, for a rejected contract, the error class and its span.
+
+An illustrative record, for a contract calling `(unwrap-or-zero (some 5))`:
+
+```json
+{
+  "result": "accepted",
+  "instances": [
+    { "id": 0,
+      "definition": { "name": "unwrap-or-zero", "overload": 0 },
+      "substitution": { "T": "(optional int)" },
+      "references": {},
+      "result_type": "int" }
+  ],
+  "calls": [ { "span": [120, 145], "instance": 0 } ],
+  "types": [ { "span": [136, 144], "type": "(optional int)" } ]
+}
+```
+
+The front-end checker, in `Compiler/`, runs the reference checker of
+`Typing/` on the same source and compares the records for equality.
+Equality is a complete check given the uniqueness of typing
+(`Metatheory/Determinism.v`): if the records match, the Rust result is
+the one the rules prescribe; if they differ, the first differing span
+locates the disagreement. Recomputing is preferred to validating a
+certificate: the full checker is built and proved anyway, and proving
+that an instantiation is the least one, or that no other overload admits
+a call, would redo most of its work.
+
+Comparing rejections requires the spec to fix which error class is
+reported when a contract has several errors, which it does not yet
+([findings.md](findings.md)).
+
+## Level 3: translation validation
+
+Given a source contract and the module `clarity-compiler` emitted, the
+validator in `Compiler/` confirms that the module behaves as the source
+under the Clarity and WebAssembly semantics, including the spec plan's
+claim that loop bounds guaranteed by source types survive compilation. It
+uses the front-end record, once checked, to match each Wasm function to
+the source instance it implements. It is proved correct once; the
+compiler stays untrusted.
+
+It runs in the compiler's continuous integration and in `clarity-verify`
+on deployed modules, after the front-end checker. WasmCert-Coq also
+extracts to a conformant Wasm interpreter: running compiled modules on it
+in differential tests separates compiler bugs from Wasm engine bugs.
+
+## Level 4: proving Rust code
+
+For the most critical code, the Rust source itself can be proved equal to
+the Rocq definitions after translation into a proof assistant:
+
+- **hax** (Cryspen) translates a large subset of Rust to Rocq, F* and
+  Lean;
+- **Aeneas** translates safe Rust to Lean, HOL4, Coq and F*, its Lean and
+  HOL4 backends being the most mature;
+- **rocq-of-rust** (Formal Land) translates Rust programs to Rocq.
+
+The verified code must stay within the subset the chosen tool supports,
+which constrains how it is written from the start. Candidates are the
+code where an error is most damaging: the type checker's core, the
+lowering of arithmetic and of asset primitives, and the allowance checks.
+
+# Part III. The end-to-end guarantee
+
+## What remains trusted
+
+With levels 1 to 3 in place, a validated contract behaves as its source
+says, under these assumptions:
+
+- **The specification** says what its authors intend. The theorems proved
+  about it and the conformance vectors are the checks on this.
+- **Rocq's kernel**, and the extraction of the direct evaluator and the
+  checkers to OCaml, with the OCaml compiler.
+- **The chain's Wasm engine** follows the WebAssembly standard. It can be
+  tested against WasmCert-Coq's interpreter.
+- **The chain's host functions** (storage, assets, context, calls)
+  implement the chain ABI. `Host/` states exactly what is assumed, so a
+  chain implementation knows what it must provide.
+- **Cryptographic primitives** implement their external standards.
+
+## Cost bounds
+
+P1 promises that the worst-case cost of every function is computable from
+its types. The formalization proves the source-side bounds on iteration
+and value sizes. Turning them into fuel bounds also needs the compiled
+module and the chain's fuel schedule, so a phase 5 validator checks, per
+module, that it stays within the bound its source implies. This is the
+preservation argument the spec plan's chapter 6 asks for, and what the
+roadmap's "cash in decidability" phase relies on.
 
 ## Not formalized
 
-- Cost: the language defines none (P4).
+- Cost as a language concept: the language defines none (P4). Fuel bounds
+  are checked per module, as above.
 - Clarity 1–6: out of scope of the spec. Their semantics is defined by the
   legacy implementation.
+
+## References
+
+- Rocq libraries: [stdpp](https://github.com/rocq-iris/stdpp),
+  [Equations](https://mattam82.github.io/Coq-Equations/),
+  [ExtLib](https://github.com/rocq-community/coq-ext-lib),
+  [Ceres](https://github.com/Lysxia/coq-ceres),
+  [WasmCert-Coq](https://github.com/WasmCert/WasmCert-Coq),
+  [QuickChick](https://github.com/QuickChick/QuickChick),
+  [ConCert](https://github.com/AU-COBRA/ConCert) and its typed extraction
+  ([Extracting functional programs from Coq, in Coq](https://arxiv.org/abs/2108.02995)).
+- Rust verification tools: [hax](https://github.com/cryspen/hax),
+  [Aeneas](https://github.com/AeneasVerif/aeneas),
+  [rocq-of-rust](https://github.com/formal-land/coq-of-rust).
+- Wasm in Rust: [wasm-tools (wasm-encoder, wasmparser, wasm-smith)](https://github.com/bytecodealliance/wasm-tools),
+  [Sunsetting the rustwasm GitHub org](https://blog.rust-lang.org/inside-rust/2025/07/21/sunsetting-the-rustwasm-github-org).

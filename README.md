@@ -21,8 +21,8 @@ theories/              Rocq sources (logical root: ClarityVerif)
   Std/                   The standard library prelude (as Clarity AST) and its properties
   Metatheory/            Type safety, termination, determinism, read-only safety
   Conformance/           Concrete contracts with expected outcomes
-docs/motivation.md     Why formalize the spec; what comparable chains do
-docs/design.md         How the formalization is organized, and why
+docs/motivation.md     Why formalize the spec, the Rocq/Rust plan, and its benefits
+docs/design.md         How the Rocq development and its interface with Rust are designed
 docs/findings.md       Issues found in the specification
 flake.nix              Nix toolchain (Rocq 9.3 + Stdlib), package and checks
 _RocqProject           Build configuration (file list, load paths)
