@@ -1,9 +1,11 @@
-(** * Chain ABI
+(** * Value interpretation layer
 
-    The parts of the chain ABI the language spec refers to without defining:
-    the value wire format and [serialized-size] (SIP-005), contract
-    interfaces, and trait implementation by an interface. Kept abstract
-    until the ABI document exists. *)
+    The value layer of the chain ABI the language spec relies on
+    ([clarity-vision/08-value-interpretation.md]): canonical encoding
+    (section 3), [serialized-size] (4.1), the [abi.types] section (5),
+    trait conformance (5.2), argument and result encoding (6), and the
+    storage layout (7.2). Kept abstract while the document is a
+    proposal. *)
 
 From ClarityVerif Require Import
   Common.Base

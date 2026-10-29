@@ -38,39 +38,57 @@ specification. The formalization mirrors this:
 
 ## Typing operates on instances
 
-Overloading, generics, reference kinds, rest parameters and inline
-functions are resolved by instantiation (spec 2.6.2), and generic bodies
+Overloading, generics, reference kinds, rest parameters and macros are
+resolved by instantiation (spec 2.6.2), and generic bodies
 are type-checked only per instance ("template semantics"). The one
 exception is the definition graph: it is over names, computed from the
 source alone, and checked before any instance exists (2.4.3), which is
-what makes instantiation and inline expansion finite. The typing pipeline
+what makes instantiation and macro expansion finite. The typing pipeline
 is therefore:
 
 1. `Typing/StaticChecks.v`, name-level part: version declaration (2.4.0),
    keywords and reserved names (2.2), scoping and no shadowing (2.5.2),
    the acyclic definition graph (2.4.3) and the deploy-order check
    (2.4.2).
-2. `Typing/Subtyping.v`: the subtyping relation and `lub`.
-3. `Typing/Instantiation.v`: least instantiation, overload resolution, the
-   capped fold-accumulator fixpoint.
-4. `Typing/Inline.v`: call-by-name expansion of inline functions.
+2. `Typing/Subtyping.v`: the subtyping preorder and the join. With
+   equivalent traits (2.3.2), the join is a defined operation, taken over
+   a whole set at once, not the order-theoretic least upper bound.
+3. `Typing/Instantiation.v`: least instantiation, overload resolution for
+   calls and function references, the capped fold-accumulator fixpoint;
+   and, on definitions, the check that overloads do not overlap (2.6.2).
+4. `Typing/Macros.v`: expansion of macros, typed at their declared
+   parameter types (2.6.3).
 5. `Typing/Typing.v`: typing judgments on instances.
 6. `Typing/StaticChecks.v`, instance-level part: responses handled,
-   `impl-trait` conformance, read-only enforcement.
+   `impl-trait` conformance, read-only enforcement, the function call depth
+   limit (2.7.5).
 
 The dynamic semantics (`Semantics/Eval.v`) also evaluates instances.
 
 ## The chain ABI is a parameter
 
-The chain ABI (value wire format, interfaces, host functions) is a separate
-document that does not exist yet. `Host/` declares only what the language
-spec relies on, as abstract parameters:
+The chain ABI is specified apart from the language, in two layers, both
+still proposals: a runtime layer shared by every source language
+(`clarity-vision/07-chain-abi.md`) and a value interpretation layer
+(`clarity-vision/08-value-interpretation.md`). `Host/` declares only what
+the language spec relies on, as abstract parameters:
 
 - `Host/Crypto.v`: hash functions and signature schemes.
-- `Host/Abi.v`: wire format, `serialized-size`, interfaces, trait
-  implementation.
-- `Host/Interface.v`: host operations (storage, assets, context, chain data,
-  calls, events).
+- `Host/Abi.v`, the value layer: canonical encoding, `serialized-size`,
+  the `abi.types` section, trait conformance, argument and result
+  encoding, the storage layout.
+- `Host/Interface.v`, the runtime layer: an untyped key-value store,
+  assets, context and chain data, calls with their `read_only` and result
+  flags, frames, events, `abort`.
+
+The chain does not check values against declared types: a Clarity module
+decodes and validates its own arguments and the results of its calls
+(spec 2.5.8). The semantics therefore models that validation itself, as
+runtime errors of the calling or called contract.
+
+Once the proposals settle, the parameters with a fixed definition
+(encoding, `serialized-size`, the storage layout) can be made concrete,
+which the direct evaluator needs anyway.
 
 Results proved over these parameters hold for every chain that implements
 the ABI. Assumptions on the parameters must stay minimal and be listed
@@ -87,7 +105,7 @@ each file can be reviewed against one table.
 | File | Property | Spec source |
 |---|---|---|
 | `TypeSafety.v` | Well-typed instances never get stuck | 2.7.1, P7 |
-| `Termination.v` | Evaluation, instantiation and inline expansion terminate | P1, 2.4.3 |
+| `Termination.v` | Evaluation, instantiation and macro expansion terminate | P1, 2.4.3 |
 | `Determinism.v` | Evaluation is a function of its inputs; typing is unique | 2.7.1, P7, 2.6.2 |
 | `ReadOnly.v` | Read-only code performs no writes | 2.7.4 |
 
@@ -130,7 +148,7 @@ program, with no compilation and no Wasm.
   `Metatheory/Termination.v`.
 - **Executable type checker.** Expected outcomes include compile errors,
   so `Typing/` provides decision procedures (type checking,
-  instantiation, overload resolution, inline expansion, static checks)
+  instantiation, overload resolution, macro expansion, static checks)
   proved to agree with the typing rules.
 - **A concrete test host.** `Host/` is instantiated with an in-memory
   host: maps for storage and balances, a configurable transaction context
@@ -236,7 +254,7 @@ program run as a separate process.
 | Crate | Role | Rocq counterpart | Candidate libraries |
 |---|---|---|---|
 | `clarity-syntax` | S-expression reader and AST | `Syntax/Sexp.v`, `Syntax/Parser.v` | Hand-written: the syntax is a regular Lisp |
-| `clarity-types` | Instantiation, inline expansion, typing, static checks; exports its decisions | `Typing/` | `serde` and `serde_json` for the exported record |
+| `clarity-types` | Instantiation, macro expansion, typing, static checks; exports its decisions | `Typing/` | `serde` and `serde_json` for the exported record |
 | `clarity-std` | The prelude source and its tests | `Std/` | |
 | `clarity-compiler` | Lowering to Wasm, prelude linking, interface and provenance sections | `Compiler/` (validator) | `wasm-encoder` to emit modules, `wasmparser` to validate them |
 | `clarity-verify` | Rebuilds a module from source and runs the validator | `Compiler/` | |
@@ -260,11 +278,13 @@ abort, as the semantics requires.
 
 `walrus` offers a higher-level, editable module representation, but it
 left the archived rustwasm organization in 2025 and mainly serves
-`wasm-bindgen`. One point to settle early: the architecture links hash
-functions compiled from Rust into each module, which means merging
-pre-built Wasm with index renumbering. This must work with `wasmparser`
-and `wasm-encoder`, or the hash functions must be compiled through the
-compiler's own intermediate representation instead.
+`wasm-bindgen`. Hash functions are host functions in the chain ABI, so
+nothing pre-built has to be merged into a module for them. The question
+returns if the compiler links faster hand-written implementations of
+prelude functions, which the spec allows (chapter 4.1): merging pre-built
+Wasm with index renumbering must then work with `wasmparser` and
+`wasm-encoder`, or those implementations must go through the compiler's
+own intermediate representation.
 
 ## Level 1: testing
 
@@ -291,7 +311,7 @@ expression without sharing data structures:
 - the instance each call resolves to;
 - the inferred type of each expression;
 - the order of deploy-time code;
-- the interface emitted in the module;
+- the `abi.interface` and `abi.types` sections emitted in the module;
 - or, for a rejected contract, the error class and its span.
 
 An illustrative record, for a contract calling `(unwrap-or-zero (some 5))`:

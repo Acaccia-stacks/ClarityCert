@@ -14,8 +14,8 @@ clarity-vision/        The specification (git submodule, pinned revision)
 theories/              Rocq sources (logical root: ClarityVerif)
   Common/                Shared Rocq imports; language limits
   Syntax/                Lexical rules, types, values, abstract syntax
-  Host/                  Abstract chain ABI: crypto, wire format, host functions
-  Typing/                Subtyping, instantiation, inline expansion, typing, static checks
+  Host/                  Abstract chain ABI: crypto, value layer, host functions
+  Typing/                Subtyping, instantiation, macro expansion, typing, static checks
   Primitives/            Signatures and semantics of the 70 core primitives
   Semantics/             Execution state, allowances, evaluation
   Std/                   The standard library prelude (as Clarity AST) and its properties
@@ -33,22 +33,24 @@ When adding a `.v` file, also list it in `_RocqProject`.
 
 ## Spec ↔ Rocq mapping
 
-Section numbers refer to the chapters in `clarity-vision/spec/`.
+Section numbers refer to the chapters in `clarity-vision/spec/`. The two
+chain ABI documents are at the root of `clarity-vision/`.
 
 | Spec section | Rocq module |
 |--------------|-------------|
 | 1 Design principles (P1–P8) | `Metatheory/*` (the properties they promise) |
 | 2.2 Lexical structure, keywords and reserved names | `Syntax/Lexical.v`, `Typing/StaticChecks.v` |
-| 2.3.1, 2.3.3–2.3.6 Types, storable/interface types, variables, aliases, reference kinds | `Syntax/Types.v` |
-| 2.3.2 Subtyping and lub | `Typing/Subtyping.v` |
+| 2.3.1, 2.3.4–2.3.7 Types, storable/interface types, variables, aliases, reference kinds | `Syntax/Types.v` |
+| 2.3.2 Subtyping, equivalent traits and lub | `Typing/Subtyping.v` |
+| 2.3.3 The `never` type | `Syntax/Types.v`, `Typing/Typing.v` |
 | 2.4.0 Version declaration | `Syntax/Ast.v`, `Typing/StaticChecks.v` |
 | 2.4.1–2.4.2 Definitions, top-level expressions; 2.5 Expression forms | `Syntax/Ast.v`, `Typing/Typing.v` |
 | 2.4.2 Deploy order; 2.4.3 Acyclic definition graph; 2.4.5 Prelude names; 2.5.2 No shadowing | `Typing/StaticChecks.v` |
 | 2.4.4 Contract interface | `Host/Abi.v` |
 | 2.5.9 Context scoping and allowances | `Semantics/Allowances.v`, `Semantics/Eval.v` |
 | 2.6.1 Visibility (every public invocation rolls back on `err`) | `Semantics/Eval.v` |
-| 2.6.2 Instantiation and overload resolution | `Typing/Instantiation.v` |
-| 2.6.3 Inline functions | `Typing/Inline.v` |
+| 2.6.2 Instantiation and overload resolution; overloads do not overlap | `Typing/Instantiation.v`, `Typing/StaticChecks.v` |
+| 2.6.3 Macros | `Typing/Macros.v` |
 | 2.6.4 Result type inference; 2.6.5 Rest parameters | `Typing/Typing.v`, `Typing/Instantiation.v` |
 | 2.7 Dynamic semantics | `Semantics/State.v`, `Semantics/Eval.v` |
 | 2.7.4 Read-only enforcement | `Typing/StaticChecks.v`, `Metatheory/ReadOnly.v` |
@@ -65,7 +67,8 @@ Section numbers refer to the chapters in `clarity-vision/spec/`.
 | 3.9 Transaction and chain context | `Primitives/Context.v`, `Host/Interface.v` |
 | 3.10 Events and control | `Primitives/Control.v` |
 | 4 Standard library, `std/prelude.clar` | `Std/Prelude.v`, `Std/Properties.v` |
-| Chain ABI (separate document) | `Host/*` (abstract) |
+| `08-value-interpretation.md` (chain ABI, value layer) | `Host/Abi.v` (abstract) |
+| `07-chain-abi.md` (chain ABI, runtime layer) | `Host/Interface.v` (abstract) |
 
 ## Working with the specification
 

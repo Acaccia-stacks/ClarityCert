@@ -14,7 +14,7 @@ theories/Host/Interface.v
 
 theories/Typing/Subtyping.v
 theories/Typing/Instantiation.v
-theories/Typing/Inline.v
+theories/Typing/Macros.v
 theories/Typing/Typing.v
 theories/Typing/StaticChecks.v
 

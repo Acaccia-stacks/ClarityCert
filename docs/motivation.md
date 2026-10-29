@@ -43,7 +43,7 @@ claims:
 |---|---|
 | Every program terminates; worst-case cost is computable from types | P1 |
 | No undefined behavior, no silent failure | P7 |
-| Instantiation and inline expansion terminate | 2.4.3, 2.6.2 |
+| Instantiation and macro expansion terminate | 2.4.3, 2.6.2 |
 | Read-only code cannot write state | 2.7.4 |
 | Runtime tuples never carry fields their static type lacks | 2.3.2 |
 | The standard library behaves as its documentation states | chapter 4 |
@@ -67,7 +67,7 @@ A defect found in a draft costs an edit. The same defect found after the
 compiler ships or contracts are deployed costs a migration, or an exploit.
 Formalization forces precision exactly where the draft is most delicate:
 the capped fixpoint for fold accumulator types (2.6.2), call-by-name
-inline arguments evaluated inside `as-contract?` frames (2.6.3), a
+macro arguments evaluated inside `as-contract?` frames (2.6.3), a
 `return` crossing an allowance frame (2.5.9), the typing of `never`.
 
 Mechanizing a specification reliably finds real bugs:
@@ -172,7 +172,7 @@ on are stable enough.
 | 1. Formal spec | Now (draft chapters 2 to 4) | Syntax, types, subtyping, typing rules, semantics of core forms and primitives, abstract host | Not required | Spec findings fixed before any compiler depends on them |
 | 2. Executable reference | Grammar and typing rules settled | Executable parser, type checker and evaluator, extracted as the direct evaluator; vector outcomes | Front end (`clarity-syntax`, `clarity-types`) developed against the direct evaluator and the vectors | The Rust compiler is tested against the spec from its first line |
 | 3. Metatheory | In parallel with phase 2 | Type safety, termination, determinism, read-only safety, uniqueness of typing, prelude properties | None | The spec's promises become theorems |
-| 4. Compilation | Spec chapter 6 and chain ABI written | Wasm semantics, translation validator, front-end checker | `clarity-compiler`, `clarity-verify`; export of front-end results | End-to-end guarantee for every validated contract |
+| 4. Compilation | Spec chapter 6 written and chain ABI settled | Wasm semantics, translation validator, front-end checker | `clarity-compiler`, `clarity-verify`; export of front-end results | End-to-end guarantee for every validated contract |
 | 5. Selective proofs and tooling | After phase 4 | Program logic for contracts; checking of cost bounds per module | Proofs of critical crates | Proved compiler components; contract authors can prove their own contracts |
 
 One dependency crosses phases: if critical Rust crates may be proved in
@@ -253,7 +253,8 @@ The spec's minimal-core design (P2) is well suited to formalization:
 - a standard library written in the language itself, so it needs no
   separate semantics;
 - no cost model in the language (P4);
-- the chain ABI kept abstract, so the formalization does not wait for it.
+- the chain ABI kept abstract while it is a proposal, so the formalization
+  does not wait for it.
 
 By contrast, KEVM and Solidity semantics must model much larger and less
 regular languages.

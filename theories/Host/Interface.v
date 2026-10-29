@@ -1,8 +1,11 @@
 (** * Host interface
 
-    The host functions the semantics is parameterized by: storage, assets,
-    transaction context, chain-data lookups (total, spec 3.9), contract
-    calls, state frames (2.7.3), events. Every primitive that passes the host-access test of the
+    The runtime layer of the chain ABI the semantics is parameterized by
+    ([clarity-vision/07-chain-abi.md]): an untyped key-value store (4.2),
+    assets, transaction context and chain-data lookups (6.2, total by
+    spec 3.9), contract calls with the [read_only] and result flags (5.3),
+    state frames (2.7.3), events, and [abort] with a runtime error class
+    (10.2). Every primitive that passes the host-access test of the
     layering rule is defined in terms of this interface. *)
 
 From ClarityVerif Require Import
