@@ -6,6 +6,7 @@
 
 From Stdlib Require Export
   Bool
+  NArith
   ZArith
   String
   List.
