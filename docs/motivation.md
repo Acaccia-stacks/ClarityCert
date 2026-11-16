@@ -249,7 +249,7 @@ interpretation of the language.
 The spec's minimal-core design (P2) is well suited to formalization:
 
 - about a dozen definition forms and a dozen expression forms;
-- 70 primitives with uniform typing rules;
+- 71 primitives with uniform typing rules;
 - a standard library written in the language itself, so it needs no
   separate semantics;
 - no cost model in the language (P4);

@@ -16,7 +16,7 @@ theories/              Rocq sources (logical root: ClarityVerif)
   Syntax/                Lexical rules, types, values, abstract syntax
   Host/                  Abstract chain ABI: crypto, value layer, host functions
   Typing/                Subtyping, instantiation, macro expansion, typing, static checks
-  Primitives/            Signatures and semantics of the 70 core primitives
+  Primitives/            Signatures and semantics of the 71 core primitives
   Semantics/             Execution state, allowances, evaluation
   Std/                   The standard library prelude (as Clarity AST) and its properties
   Metatheory/            Type safety, termination, determinism, read-only safety
@@ -45,7 +45,7 @@ chain ABI documents are at the root of `clarity-vision/`.
 | 2.3.3 The `never` type | `Syntax/Types.v`, `Typing/Typing.v` |
 | 2.4.0 Version declaration | `Syntax/Ast.v`, `Typing/StaticChecks.v` |
 | 2.4.1–2.4.2 Definitions, top-level expressions; 2.5 Expression forms | `Syntax/Ast.v`, `Typing/Typing.v` |
-| 2.4.2 Deploy order; 2.4.3 Acyclic definition graph; 2.4.5 Prelude names; 2.5.2 No shadowing | `Typing/StaticChecks.v` |
+| 2.4 One namespace; 2.4.2 Deploy order; 2.4.3 Acyclic definition graph; 2.4.5 Prelude names; 2.5.2 No shadowing | `Typing/StaticChecks.v` |
 | 2.4.4 Contract interface | `Host/Abi.v` |
 | 2.5.9 Context scoping and allowances | `Semantics/Allowances.v`, `Semantics/Eval.v` |
 | 2.6.1 Visibility (every public invocation rolls back on `err`) | `Semantics/Eval.v` |
@@ -55,7 +55,7 @@ chain ABI documents are at the root of `clarity-vision/`.
 | 2.7 Dynamic semantics | `Semantics/State.v`, `Semantics/Eval.v` |
 | 2.7.4 Read-only enforcement | `Typing/StaticChecks.v`, `Metatheory/ReadOnly.v` |
 | 2.8 Limits | `Common/Limits.v` |
-| 2.9, 3.12 Open questions | none until decided |
+| 2.9, 3.12, 5.8 Open questions | none until decided |
 | 3 Primitive signatures | `Primitives/Signatures.v` |
 | 3.1–3.2 Arithmetic, comparison | `Primitives/Arith.v` |
 | 3.3 Sequences | `Primitives/Sequences.v` |
@@ -67,6 +67,8 @@ chain ABI documents are at the root of `clarity-vision/`.
 | 3.9 Transaction and chain context | `Primitives/Context.v`, `Host/Interface.v` |
 | 3.10 Events and control | `Primitives/Control.v` |
 | 4 Standard library, `std/prelude.clar` | `Std/Prelude.v`, `Std/Properties.v` |
+| 5 Grammar, `grammar/clarity.ebnf`: tokens and layout (Part L, T1–T4, W1), lexical checks (LX1–LX7) | `Syntax/Lexical.v` |
+| 5 Grammar: forms (Part S); 5.4 what it leaves to the type checker (C1–C15) | `Syntax/Ast.v`, `Typing/StaticChecks.v`, `Typing/Typing.v` |
 | `08-value-interpretation.md` (chain ABI, value layer) | `Host/Abi.v` (abstract) |
 | `07-chain-abi.md` (chain ABI, runtime layer) | `Host/Interface.v` (abstract) |
 

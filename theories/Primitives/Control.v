@@ -1,7 +1,8 @@
 (** * Event and control primitives
 
-    Semantics of spec 3.10: [print], which emits its value's rendering
-    as Clarity literal text, and [panic]. *)
+    Semantics of spec 3.10: [emit], which emits the canonical encoding of
+    its value as an event of a [define-event] or an [(event T)]
+    reference; [log], debug output the chain discards; and [panic]. *)
 
 From ClarityVerif Require Import
   Common.Base
