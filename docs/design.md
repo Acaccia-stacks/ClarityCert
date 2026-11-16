@@ -7,8 +7,9 @@ for the project and its phases are in [motivation.md](motivation.md).
 
 ## Principles
 
-- **The prose spec is normative.** The formal semantics is a precise
-  reading of it. Where the two disagree, the disagreement is a finding
+- **The prose spec is normative**, together with its grammar
+  (`grammar/clarity.ebnf`, chapter 5). The formal semantics is a precise
+  reading of them. Where the two disagree, the disagreement is a finding
   ([findings.md](findings.md)) settled in the spec, not an automatic win
   for Rocq. This matches the spec plan: for the core language, the prose
   rule is normative.
@@ -24,7 +25,7 @@ for the project and its phases are in [motivation.md](motivation.md).
 
 ## Core and standard library are separate layers
 
-The spec defines a small core (special forms and 70 primitives) and a
+The spec defines a small core (special forms and 71 primitives) and a
 standard library written in Clarity (`prelude.clar`), whose source is its
 specification. The formalization mirrors this:
 
@@ -44,24 +45,36 @@ are type-checked only per instance ("template semantics"). The one
 exception is the definition graph: it is over names, computed from the
 source alone, and checked before any instance exists (2.4.3), which is
 what makes instantiation and macro expansion finite. The typing pipeline
-is therefore:
+is therefore, on a contract the parser accepted:
 
-1. `Typing/StaticChecks.v`, name-level part: version declaration (2.4.0),
-   keywords and reserved names (2.2), scoping and no shadowing (2.5.2),
-   the acyclic definition graph (2.4.3) and the deploy-order check
-   (2.4.2).
+1. `Typing/StaticChecks.v`, name-level part: a declared version the
+   checker implements (2.4.0), reserved names never rebound (2.2), one
+   namespace for top-level names, shared only by overloads (2.4),
+   scoping and no shadowing (2.5.2), the acyclic definition graph (2.4.3)
+   and the deploy-order check (2.4.2). Keywords are not checked here:
+   the grammar excludes them from binding positions, so binding one is a
+   parse error.
 2. `Typing/Subtyping.v`: the subtyping preorder and the join. With
    equivalent traits (2.3.2), the join is a defined operation, taken over
    a whole set at once, not the order-theoretic least upper bound.
 3. `Typing/Instantiation.v`: least instantiation, overload resolution for
    calls and function references, the capped fold-accumulator fixpoint;
    and, on definitions, the check that overloads do not overlap (2.6.2).
+   Reference kinds are matched by kind (2.3.7): identical types for
+   variables, maps and NFTs; for `(event T)`, a declared type that is a
+   supertype of `T`, which fixes a variable occurring only in event
+   references at the declared type.
 4. `Typing/Macros.v`: expansion of macros, typed at their declared
    parameter types (2.6.3).
 5. `Typing/Typing.v`: typing judgments on instances.
 6. `Typing/StaticChecks.v`, instance-level part: responses handled,
    `impl-trait` conformance, read-only enforcement, the function call depth
    limit (2.7.5).
+
+Chapter 5.4 lists the static errors most likely to be looked for in the
+grammar, labelled C1–C15. The labels are only names for the grammar's
+side conditions, not rule identifiers, but they map each check above to
+the place where the grammar stops.
 
 The dynamic semantics (`Semantics/Eval.v`) also evaluates instances.
 
@@ -75,11 +88,16 @@ the language spec relies on, as abstract parameters:
 
 - `Host/Crypto.v`: hash functions and signature schemes.
 - `Host/Abi.v`, the value layer: canonical encoding, `serialized-size`,
-  the `abi.types` section, trait conformance, argument and result
-  encoding, the storage layout.
+  the `abi.types` section (with the data type of each event), trait
+  conformance, argument and result encoding, the storage layout.
 - `Host/Interface.v`, the runtime layer: an untyped key-value store,
   assets, context and chain data, calls with their `read_only` and result
-  flags, frames, events, `abort`.
+  flags, frames, events, `abort`. A contract event is emitted by its
+  index in the interface's `events` list and carries the event's name and
+  its data bytes; every event has a size fixed by the ABI, and the
+  transaction's event bytes, which a rolled-back frame gives back, are
+  capped (`events-exceeded`). `log` output is passed to the host and
+  discarded: it is not an event.
 
 The chain does not check values against declared types: a Clarity module
 decodes and validates its own arguments and the results of its calls
@@ -87,8 +105,10 @@ decodes and validates its own arguments and the results of its calls
 runtime errors of the calling or called contract.
 
 Once the proposals settle, the parameters with a fixed definition
-(encoding, `serialized-size`, the storage layout) can be made concrete,
-which the direct evaluator needs anyway.
+(encoding, `serialized-size`, the storage layout) can be made concrete.
+The direct evaluator needs them: an event's data is the canonical
+encoding of the emitted value, so the events of a vector are bytes that
+only a concrete encoding can produce.
 
 Results proved over these parameters hold for every chain that implements
 the ABI. Assumptions on the parameters must stay minimal and be listed
@@ -111,23 +131,40 @@ each file can be reviewed against one table.
 
 ## Parsing is formalized in Rocq
 
-vNEXT syntax is S-expressions, so the parser is a regular Lisp parser
-written directly in Rocq, with no parser generator. It has two layers:
+The syntax is defined by the spec's grammar (chapter 5,
+`grammar/clarity.ebnf`) in two levels: Part L turns characters into
+tokens and separators, and Part S builds forms from the tokens. The
+parser follows the same split, written directly in Rocq with no parser
+generator:
 
-1. **S-expression reader**: characters to nested lists of atoms. Beyond
-   plain Lisp, it handles the lexical forms of spec 2.2: tuple literals
-   `{ name: expr, ... }`, `0x` buffers, `u"..."` strings, principal
-   literals (`'SP...`, `.name`), and the spread suffix `e...`.
-2. **AST builder**: S-expressions to `Syntax/Ast.v`, checking the shape of
-   each form (the leading `clarity-version`, definitions, `match` arms,
-   allowances).
+1. **Lexer** (`Syntax/Lexer.v`): characters to tokens. It applies the
+   longest match (T1), requires a delimiter after every token other than
+   punctuation (T2), admits only the characters of T3, enforces the
+   layout rule W1, and makes the checks that depend on the token alone
+   (LX1–LX5). The syntax is not a plain Lisp: `u2f` and `x(f)` are
+   errors, not two tokens, and `...` is a token of its own.
+2. **Parser** (`Syntax/Parser.v`): tokens to `Syntax/Ast.v`, by the
+   Part S rules. Beyond the shape of each form (the leading
+   `clarity-version`, definitions, allowances), these include the six
+   `match` arm pairs, keywords excluded from binding names, the dedicated
+   forms of `map` and of the six primitives that take a type or size, a
+   spread only as the last argument, and the checks that depend on where
+   a token occurs (LX6, LX7).
 
-They will live in `Syntax/Sexp.v` and `Syntax/Parser.v` once the spec's
-grammar settles. `Syntax/Lexical.v` holds the lexical well-formedness
-rules already stated (2.2). Writing the parser in Rocq keeps it inside the
-proved part of the development: a print/parse round-trip property can be
-proved, and the direct evaluator does not have to trust a hand-written
-parser.
+Every failure in either layer is a **parse error** (T4), a class of its
+own, reported before any type checking. What the grammar accepts and the
+type checker rejects (5.4) belongs to `Typing/`, so the AST must keep
+such inputs representable: a size argument may be an `int` literal (C11),
+and a name in type position stays unresolved until elaboration decides
+whether it is an alias, a type variable or a misplaced trait name (C10).
+
+`Syntax/Lexical.v` states the lexical rules as predicates (2.2, 5.3),
+against which the lexer is proved. Writing the parser in Rocq keeps it
+inside the proved part of the development, and the direct evaluator does
+not have to trust a hand-written parser. Each literal has one spelling up
+to digit separators, and a source is fixed up to layout and trailing
+commas, so a canonical printer exists and `parse (print a) = a` can be
+proved for every AST `a`.
 
 ## The direct evaluator
 
@@ -152,7 +189,8 @@ program, with no compilation and no Wasm.
   proved to agree with the typing rules.
 - **A concrete test host.** `Host/` is instantiated with an in-memory
   host: maps for storage and balances, a configurable transaction context
-  and chain data, an event log and an asset-movement log. Cryptographic
+  and chain data, an event log and an asset-movement log, and a
+  configurable cap on event bytes, which the ABI leaves open. Cryptographic
   primitives are bound to standard libraries at extraction time.
 - **Extraction.** Parser, type checker and evaluator are extracted to
   OCaml, with Clarity's 128-bit integers represented as arbitrary
@@ -161,9 +199,12 @@ program, with no compilation and no Wasm.
   the compiler under test targets WebAssembly.
 - **Packaging.** The flake builds the direct evaluator as a
   `clarity-oracle` command. It takes a contract, an initial chain state
-  and a sequence of calls, and outputs the outcome as JSON: a compile
-  error class, or the results, events, asset movements and aborts of each
-  call. This matches the content of a language vector in the spec plan.
+  and a sequence of calls, and outputs the outcome as JSON: a parse
+  error, a static error class, or the results, events (contract, name and
+  data), asset movements and aborts of each call. This matches the
+  content of a language vector in the spec plan. `log` output is not part
+  of the outcome, since the chain discards it; the command may show it
+  separately for debugging.
 
 ### How it is used
 
@@ -233,11 +274,14 @@ adopted, they become goals stated in this logic.
 | Integers, strings, lists | Rocq Stdlib | Everywhere |
 | Finite maps (environments, storage), decidable equality | stdpp | `Syntax/`, `Semantics/`, `Host/` |
 | Well-founded recursion and dependent pattern matching, for termination arguments | Equations | `Semantics/Eval.v`, `Typing/Instantiation.v`, `Metatheory/` |
-| Reading and printing S-expressions | Ceres | `Syntax/Sexp.v`, `Syntax/Parser.v` |
 | Monads, for an interpreter with errors and state | ExtLib | `Semantics/Eval.v`, `Typing/` |
 | Extraction to OCaml, 128-bit integers as arbitrary-precision integers | Rocq extraction, zarith | The direct evaluator and the checkers |
 | Formal WebAssembly semantics | WasmCert-Coq | `Compiler/` (phase 4) |
 | Property-based testing inside Rocq | QuickChick | Optional |
+
+The lexer and parser use no S-expression library: the token rules of
+chapter 5 (delimiters, layout, tuple punctuation, `...`) are not those
+of a generic Lisp reader such as Ceres.
 
 All of these are packaged in nixpkgs for the pinned Rocq 9.3, except
 WasmCert-Coq and QuickChick, which are marked broken there. WasmCert-Coq
@@ -253,12 +297,12 @@ program run as a separate process.
 
 | Crate | Role | Rocq counterpart | Candidate libraries |
 |---|---|---|---|
-| `clarity-syntax` | S-expression reader and AST | `Syntax/Sexp.v`, `Syntax/Parser.v` | Hand-written: the syntax is a regular Lisp |
+| `clarity-syntax` | Lexer, parser and AST | `Syntax/Lexer.v`, `Syntax/Parser.v` | Hand-written from the spec's EBNF, with the same parse errors |
 | `clarity-types` | Instantiation, macro expansion, typing, static checks; exports its decisions | `Typing/` | `serde` and `serde_json` for the exported record |
 | `clarity-std` | The prelude source and its tests | `Std/` | |
 | `clarity-compiler` | Lowering to Wasm, prelude linking, interface and provenance sections | `Compiler/` (validator) | `wasm-encoder` to emit modules, `wasmparser` to validate them |
 | `clarity-verify` | Rebuilds a module from source and runs the validator | `Compiler/` | |
-| Test harness | Conformance vectors, differential tests, fuzzing | The direct evaluator | `wasmtime` as a test engine with an in-memory host; `proptest` and `cargo-fuzz` to generate contracts |
+| Test harness | Conformance vectors, differential tests, fuzzing | The direct evaluator | `wasmi`, the chain's engine, with an in-memory host; `proptest` and `cargo-fuzz` to generate contracts |
 
 **Integers.** Clarity's `int` and `uint` are 128-bit, which maps directly
 to Rust's `i128` and `u128` with checked arithmetic: an overflow is an
@@ -293,7 +337,8 @@ The compiler's continuous integration runs:
 - the conformance vectors, with outcomes computed by the direct
   evaluator;
 - differential tests and fuzzing: the same contracts and calls run through
-  the compiled Wasm (on `wasmtime`, with a test host) and through
+  the compiled Wasm (on `wasmi`, the engine the chain ABI names, with a
+  test host) and through
   `clarity-oracle`, comparing results, events, asset movements and aborts;
 - the front-end comparison of level 2 on every test contract.
 
@@ -312,7 +357,8 @@ expression without sharing data structures:
 - the inferred type of each expression;
 - the order of deploy-time code;
 - the `abi.interface` and `abi.types` sections emitted in the module;
-- or, for a rejected contract, the error class and its span.
+- or, for a rejected contract, whether it is a parse error or a static
+  error, the static error's class, and its span.
 
 An illustrative record, for a contract calling `(unwrap-or-zero (some 5))`:
 
@@ -342,8 +388,9 @@ that an instantiation is the least one, or that no other overload admits
 a call, would redo most of its work.
 
 Comparing rejections requires the spec to fix which error class is
-reported when a contract has several errors, which it does not yet
-([findings.md](findings.md)).
+reported when a contract has several errors. It does so only in part: a
+parse error is reported before any type checking (5.2, T4), but nothing
+orders two static errors ([findings.md](findings.md)).
 
 ## Level 3: translation validation
 
@@ -358,7 +405,9 @@ compiler stays untrusted.
 It runs in the compiler's continuous integration and in `clarity-verify`
 on deployed modules, after the front-end checker. WasmCert-Coq also
 extracts to a conformant Wasm interpreter: running compiled modules on it
-in differential tests separates compiler bugs from Wasm engine bugs.
+in differential tests separates compiler bugs from Wasm engine bugs. The
+chain's Wasm profile admits bulk memory (`memory.copy`, `memory.fill`),
+so the WasmCert-Coq version used must cover those operators.
 
 ## Level 4: proving Rust code
 
@@ -387,8 +436,8 @@ says, under these assumptions:
   about it and the conformance vectors are the checks on this.
 - **Rocq's kernel**, and the extraction of the direct evaluator and the
   checkers to OCaml, with the OCaml compiler.
-- **The chain's Wasm engine** follows the WebAssembly standard. It can be
-  tested against WasmCert-Coq's interpreter.
+- **The chain's Wasm engine**, wasmi, follows the WebAssembly standard.
+  It can be tested against WasmCert-Coq's interpreter.
 - **The chain's host functions** (storage, assets, context, calls)
   implement the chain ABI. `Host/` states exactly what is assumed, so a
   chain implementation knows what it must provide.
@@ -416,7 +465,6 @@ roadmap's "cash in decidability" phase relies on.
 - Rocq libraries: [stdpp](https://github.com/rocq-iris/stdpp),
   [Equations](https://mattam82.github.io/Coq-Equations/),
   [ExtLib](https://github.com/rocq-community/coq-ext-lib),
-  [Ceres](https://github.com/Lysxia/coq-ceres),
   [WasmCert-Coq](https://github.com/WasmCert/WasmCert-Coq),
   [QuickChick](https://github.com/QuickChick/QuickChick),
   [ConCert](https://github.com/AU-COBRA/ConCert) and its typed extraction
@@ -424,5 +472,6 @@ roadmap's "cash in decidability" phase relies on.
 - Rust verification tools: [hax](https://github.com/cryspen/hax),
   [Aeneas](https://github.com/AeneasVerif/aeneas),
   [rocq-of-rust](https://github.com/formal-land/coq-of-rust).
+- Wasm engine: [wasmi](https://github.com/wasmi-labs/wasmi).
 - Wasm in Rust: [wasm-tools (wasm-encoder, wasmparser, wasm-smith)](https://github.com/bytecodealliance/wasm-tools),
   [Sunsetting the rustwasm GitHub org](https://blog.rust-lang.org/inside-rust/2025/07/21/sunsetting-the-rustwasm-github-org).
