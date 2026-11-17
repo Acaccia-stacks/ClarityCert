@@ -110,3 +110,123 @@ Inductive size :=
 
 Lemma size_eq_dec (s t : size) : {s = t} + {s <> t}.
 Proof. decide equality; [apply N.eq_dec | apply string_dec]. Defined.
+
+(** ** Types
+
+    The types of spec 2.3.1, after elaboration:
+    - [define-type] aliases are expanded (2.3.6), so no alias remains;
+    - a name in type position that is not an alias is a type variable
+      ([TVar], 2.3.5); a trait name there is a static error (5.4, C10),
+      and a trait type is written [(trait X)] ([TTrait]);
+    - [never] is the empty type (2.3.3);
+    - [TContract] is the internal contract-literal type: the type of the
+      one contract principal named by a literal or a static constant. It
+      cannot be written in source (2.3.1).
+
+    A tuple type lists its fields as (name, type) pairs. A field name is
+    any identifier, keywords included (2.5.1). The fields of a well-formed
+    tuple type are distinct and in ascending byte order of name, as in
+    the canonical encoding (value layer, section 3).
+
+    A plain [string] is enough for field names, without proofs as in
+    the principal records:
+    - a name that is not an identifier is a parse error (chapter 5), so
+      it never reaches [ty]; that is a theorem about the lexer, not a
+      rule [ty] has to enforce;
+    - two fields with the same name are a static error (5.4, C15), so
+      [ty] must be able to represent them for the type checker to
+      reject them;
+    - a proof inside [TTuple] would have to be carried by [ty_ind],
+      the equality decision and every function that builds a type.
+    Distinct, sorted names are a predicate on types, stated in a later
+    section. *)
+
+Local Unset Elimination Schemes.
+
+Inductive ty :=
+| TInt
+| TUInt
+| TBool
+| TPrincipal
+| TNever
+| TBuff (n : size)
+| TAscii (n : size)
+| TUtf8 (n : size)
+| TList (n : size) (t : ty)
+| TOptional (t : ty)
+| TResponse (t e : ty)
+| TTuple (fields : list (string * ty))
+| TTrait (x : trait_id)
+| TContract (c : contract_id)
+| TVar (x : string).
+
+Local Set Elimination Schemes.
+
+(** The induction principle Rocq would generate for [ty] has no
+    hypothesis for the types inside a tuple, because they sit in a list.
+    So generation is turned off around [ty], and [ty_ind] is written here
+    instead: a property holds of a tuple type if it holds of every field
+    type, stated with [Forall] so that its Stdlib lemmas
+    ([Forall_forall], [Forall_impl]) apply. It is registered as the
+    induction scheme of [ty], so a plain [induction t] uses it.
+
+    Turning generation off also drops [ty_rect], [ty_rec] and [ty_sind].
+    Nothing needs them: [decide equality] would use [ty_rec], but it gets
+    stuck on tuples anyway, so the equality decision on [ty] is written
+    by hand. *)
+
+Section TyInd.
+  Variable P : ty -> Prop.
+
+  Hypothesis H_int : P TInt.
+  Hypothesis H_uint : P TUInt.
+  Hypothesis H_bool : P TBool.
+  Hypothesis H_principal : P TPrincipal.
+  Hypothesis H_never : P TNever.
+  Hypothesis H_buff : forall n, P (TBuff n).
+  Hypothesis H_ascii : forall n, P (TAscii n).
+  Hypothesis H_utf8 : forall n, P (TUtf8 n).
+  Hypothesis H_list : forall n t, P t -> P (TList n t).
+  Hypothesis H_optional : forall t, P t -> P (TOptional t).
+  Hypothesis H_response : forall t e, P t -> P e -> P (TResponse t e).
+  Hypothesis H_tuple :
+    forall fields, Forall (fun f => P (snd f)) fields -> P (TTuple fields).
+  Hypothesis H_trait : forall x, P (TTrait x).
+  Hypothesis H_contract : forall c, P (TContract c).
+  Hypothesis H_var : forall x, P (TVar x).
+
+  Fixpoint ty_ind (t : ty) : P t :=
+    match t with
+    | TInt => H_int
+    | TUInt => H_uint
+    | TBool => H_bool
+    | TPrincipal => H_principal
+    | TNever => H_never
+    | TBuff n => H_buff n
+    | TAscii n => H_ascii n
+    | TUtf8 n => H_utf8 n
+    | TList n u => H_list n u (ty_ind u)
+    | TOptional u => H_optional u (ty_ind u)
+    | TResponse u e => H_response u e (ty_ind u) (ty_ind e)
+    | TTuple fields =>
+        H_tuple fields
+          ((fix fields_ind (fs : list (string * ty))
+              : Forall (fun f => P (snd f)) fs :=
+              match fs with
+              | [] => Forall_nil _
+              | (x, u) :: rest =>
+                  Forall_cons (x, u) (ty_ind u) (fields_ind rest)
+              end) fields)
+    | TTrait x => H_trait x
+    | TContract c => H_contract c
+    | TVar x => H_var x
+    end.
+End TyInd.
+
+Register Scheme ty_ind as ind_nodep for ty.
+
+(** The data type of the [listed] event of spec 3.10, in a list:
+    [(list 10 { id: uint, price: uint, seller: principal })]. *)
+Example example_listings_type : ty :=
+  TList (SLit 10)
+    (TTuple [("id"%string, TUInt); ("price"%string, TUInt); ("seller"%string, TPrincipal)]).
