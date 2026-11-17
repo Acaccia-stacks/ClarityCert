@@ -88,3 +88,25 @@ Record trait_id := {
   ti_contract : contract_id;
   ti_name : string;
 }.
+
+(** ** Sizes
+
+    A size bounds the length of a sequence type: [(buff N)],
+    [(string-ascii N)], [(string-utf8 N)] and [(list N T)]. In a type it
+    is written as a numeral or a name (spec 2.3.1). A name is either a
+    static constant, replaced by its value during elaboration, or a size
+    variable (2.3.5), which an instantiation maps to a natural number
+    (2.6.2). So after elaboration a size is a literal or a size variable.
+
+    This is the size inside a type only. A size passed as an argument,
+    which may also be a bare [int] literal rejected later by the type
+    checker (spec 5.4, C11), is in [Syntax.Ast]. Size arithmetic, such as
+    the [2N + 1] of a primitive's signature, is in
+    [Primitives.Signatures]. *)
+
+Inductive size :=
+| SLit (n : N)
+| SVar (x : string).
+
+Lemma size_eq_dec (s t : size) : {s = t} + {s <> t}.
+Proof. decide equality; [apply N.eq_dec | apply string_dec]. Defined.
