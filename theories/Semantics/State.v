@@ -6,7 +6,7 @@
     whose discarded events stop counting toward the transaction's event
     bytes (spec 2.5.9, 2.7.3, 2.7.6). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values
   Host.Interface.

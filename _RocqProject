@@ -1,4 +1,4 @@
--R theories ClarityVerif
+-R theories ClarityCert
 
 theories/Common/Base.v
 theories/Common/Limits.v

@@ -4,7 +4,7 @@
     error class, results, events, aborts), mirroring the spec's language
     vectors. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Std.Prelude
   Typing.Typing

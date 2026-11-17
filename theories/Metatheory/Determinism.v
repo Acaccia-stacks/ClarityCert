@@ -5,7 +5,7 @@
     elaboration (instances, substitutions, types), so the type checker is
     a function from source to elaboration or error (spec 2.6.2). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Typing.Typing
   Typing.StaticChecks

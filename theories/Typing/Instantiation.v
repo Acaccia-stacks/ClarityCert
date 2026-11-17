@@ -10,7 +10,7 @@
     compilation operate on; the definition graph is over names and is
     checked before any instance exists (2.4.3). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Common.Limits
   Syntax.Types

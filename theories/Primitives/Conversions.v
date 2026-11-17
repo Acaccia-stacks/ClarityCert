@@ -5,7 +5,7 @@
     value layer, and
     Bitcoin transaction parsing ([get-bitcoin-tx-output?]). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values
   Host.Abi.

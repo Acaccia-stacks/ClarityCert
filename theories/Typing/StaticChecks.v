@@ -14,7 +14,7 @@
     static errors chapter 5.4 lists (C1-C15) are checked here or in
     [Typing.Typing]. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Ast
   Typing.Typing.

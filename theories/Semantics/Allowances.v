@@ -5,7 +5,7 @@
     of the owner's movements, [with-all-assets-unsafe], and the reported
     allowance index (chosen by the chain ABI). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values
   Semantics.State.

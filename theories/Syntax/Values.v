@@ -4,6 +4,6 @@
     type information (spec 2.7.1); tuples have exactly the fields of their
     type (2.3.2). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Types.

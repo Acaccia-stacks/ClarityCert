@@ -5,6 +5,6 @@
     revision. Its source is its
     specification (spec chapter 4, P3, P5). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Ast.

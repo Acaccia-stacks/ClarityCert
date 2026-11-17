@@ -7,7 +7,7 @@
     (7.1), and the storage layout (7.2). Kept abstract while the document is a
     proposal. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Types
   Syntax.Values.

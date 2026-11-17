@@ -5,6 +5,6 @@
     type; call-by-name evaluation; hygiene; [return] targeting the caller;
     the at-most-once rule for value parameters. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Ast.

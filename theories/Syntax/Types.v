@@ -6,7 +6,7 @@
     and static constants as sizes (2.3.5), aliases (2.3.6), and static
     reference kinds, including [(event T)] (2.3.7). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Common.Limits
   Syntax.Lexical.

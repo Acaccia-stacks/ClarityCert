@@ -1,4 +1,4 @@
-# clarity-verif
+# ClarityCert
 
 A Rocq formalization used to check the specification of Clarity vNEXT,
 the next version of the [Clarity](https://docs.stacks.co/clarity)
@@ -31,7 +31,7 @@ Open spec findings are listed in `docs/findings.md`.
 
 ```
 clarity-vision/        The specification (git submodule, pinned revision)
-theories/              Rocq sources (logical root: ClarityVerif)
+theories/              Rocq sources (logical root: ClarityCert)
   Common/                Shared Rocq imports; language limits
   Syntax/                Lexical rules, types, values, abstract syntax
   Host/                  Abstract chain ABI: crypto, value layer, host functions
@@ -158,8 +158,8 @@ dedicated switch with the pinned versions:
 
 ```sh
 opam init                                   # first time only
-opam switch create clarity-verif 5.5.1      # OCaml >= 5.3 recommended
-eval $(opam env --switch=clarity-verif)
+opam switch create clarity-cert 5.5.1      # OCaml >= 5.3 recommended
+eval $(opam env --switch=clarity-cert)
 opam install rocq-core.9.3.0 rocq-stdlib.9.2.0
 ```
 
@@ -202,8 +202,8 @@ Rocq 9.3):
   project.
 
 **With opam:** `opam install vsrocq-language-server.2.5.0` in the
-`clarity-verif` switch, install the extension, and start the editor from
-a shell where `eval $(opam env --switch=clarity-verif)` has been run (or
+`clarity-cert` switch, install the extension, and start the editor from
+a shell where `eval $(opam env --switch=clarity-cert)` has been run (or
 set `vsrocq.path` to the switch's `bin/vsrocqtop`).
 
 **With Nix:** nixpkgs does not yet package a language server for
@@ -212,11 +212,11 @@ built against the project's pinned toolchain, which this flake exposes as
 `legacyPackages.<system>.rocqPackages`. Point the extension at the
 resulting binary with the `vsrocq.path` setting.
 
-The language server reads `_RocqProject`, so the `ClarityVerif` load
+The language server reads `_RocqProject`, so the `ClarityCert` load
 path is set up automatically. It does not compile dependencies: run `make`
 before opening a file, and again after changing a module that other files
 import. Otherwise the editor reports `Unable to locate library ... with
-prefix ClarityVerif` (no `.vo` yet) or an inconsistent-assumptions error
+prefix ClarityCert` (no `.vo` yet) or an inconsistent-assumptions error
 (stale `.vo`).
 
 ## Updating the toolchain

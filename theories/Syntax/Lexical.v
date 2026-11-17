@@ -7,7 +7,7 @@
     (T3) and the lexical checks LX1-LX7 (chapter 5), stated as predicates
     for the lexer to be proved against. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Common.Limits.
 

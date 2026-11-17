@@ -4,7 +4,7 @@
     [principal-construct?] and [principal-destruct?] are prelude
     definitions. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values
   Host.Interface.

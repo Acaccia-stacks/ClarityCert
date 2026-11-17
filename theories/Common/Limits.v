@@ -6,7 +6,7 @@
     contract-call depth limit and the transaction's event bytes belong to
     the chain ABI. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base.
 
 (** Limits are binary naturals: byte counts reach 2^23, too large for a

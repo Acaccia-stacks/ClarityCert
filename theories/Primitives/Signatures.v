@@ -4,7 +4,7 @@
     families over [int]/[uint], rest parameters, size-term arguments, a
     reference-kind argument ([emit]), and size arithmetic. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Types
   Syntax.Ast.

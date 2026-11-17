@@ -4,7 +4,7 @@
     frame-scoped [sender], [caller] and [contract] fields, and the total
     chain-data lookups. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values
   Host.Interface.

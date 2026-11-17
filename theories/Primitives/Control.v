@@ -4,7 +4,7 @@
     its value as an event of a [define-event] or an [(event T)]
     reference; [log], debug output the chain discards; and [panic]. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values
   Host.Interface.

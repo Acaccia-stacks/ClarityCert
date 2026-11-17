@@ -8,6 +8,6 @@
     equivalent traits, the join is not a least upper bound in the
     order-theoretic sense. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Types.

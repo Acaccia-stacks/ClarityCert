@@ -11,7 +11,7 @@
     (10.2). Every primitive that passes the host-access test of the
     layering rule is defined in terms of this interface. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Types
   Syntax.Values

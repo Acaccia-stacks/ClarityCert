@@ -7,7 +7,7 @@
     of decoded arguments and call results by the module (2.5.8),
     [contract-call-raw?], deploy-time code in source order (2.4.2). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Common.Limits
   Syntax.Values

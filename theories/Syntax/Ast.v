@@ -9,7 +9,7 @@
     It keeps what the grammar accepts and the type checker rejects (5.4),
     such as a bare [int] literal as a size argument. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Types
   Syntax.Values.

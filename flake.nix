@@ -35,8 +35,8 @@
           rocqPackages.stdlib
         ];
 
-        clarity-verif = pkgs.stdenv.mkDerivation {
-          pname = "clarity-verif";
+        clarity-cert = pkgs.stdenv.mkDerivation {
+          pname = "clarity-cert";
           version = "0.1.0";
           src = pkgs.lib.cleanSource ./.;
 
@@ -50,22 +50,22 @@
 
           installPhase = ''
             runHook preInstall
-            mkdir -p $out/lib/rocq/user-contrib/ClarityVerif
+            mkdir -p $out/lib/rocq/user-contrib/ClarityCert
             cd theories
             find . -name '*.vo' -o -name '*.v' -o -name '*.glob' \
-              | xargs -I{} install -Dm644 {} $out/lib/rocq/user-contrib/ClarityVerif/{}
+              | xargs -I{} install -Dm644 {} $out/lib/rocq/user-contrib/ClarityCert/{}
             runHook postInstall
           '';
         };
       in
       {
-        packages.default = clarity-verif;
+        packages.default = clarity-cert;
 
         # The pinned Rocq package set, for tooling built on top of this flake.
         legacyPackages.rocqPackages = rocqPackages;
 
         # `nix flake check` compiles every proof.
-        checks.default = clarity-verif;
+        checks.default = clarity-cert;
 
         devShells.default = pkgs.mkShell {
           packages = rocqDeps ++ [

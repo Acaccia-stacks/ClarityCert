@@ -4,7 +4,7 @@
     and its disposition table claim (e.g. [unwrap!] early exit, [pow],
     [sqrti], signed buffer conversions sign-extend). *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Std.Prelude
   Typing.Typing

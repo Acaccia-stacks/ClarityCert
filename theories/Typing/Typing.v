@@ -7,7 +7,7 @@
     typed (2.3.3); result type inference; value and intermediate size
     limits. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Common.Limits
   Syntax.Types

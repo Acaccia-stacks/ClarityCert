@@ -5,6 +5,6 @@
     [bit-not], shifts, comparisons (element-wise order on sequences),
     [is-eq]. *)
 
-From ClarityVerif Require Import
+From ClarityCert Require Import
   Common.Base
   Syntax.Values.
