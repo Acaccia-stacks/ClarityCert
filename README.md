@@ -7,6 +7,26 @@ smart-contract language. The specification lives in
 included as the `clarity-vision/` submodule: the submodule commit is the
 exact spec revision the formalization is written against.
 
+## Status
+
+Early work, against spec revision 13080e1. Every module in `theories/`
+exists and builds, but most hold only a header citing the spec sections
+they will cover. Written so far:
+
+| Module | Content |
+|--------|---------|
+| `Common/Base.v` | Shared Stdlib imports |
+| `Common/Limits.v` | Language limits (2.8) |
+| `Syntax/Lexical.v` | Contract names |
+| `Syntax/Types.v` | Principals and trait identifiers; sizes; the type grammar with its induction principle; decidable equality on principals and types |
+
+Next: the rest of `Syntax/Types.v` (sequence and element types,
+structural predicates, storable and interface types, reference kinds),
+then values, the abstract syntax and subtyping. No metatheorem is
+stated yet.
+
+Open spec findings are listed in `docs/findings.md`.
+
 ## Layout
 
 ```
@@ -82,9 +102,6 @@ git clone --recurse-submodules <this repo>
 # or, in an existing clone:
 git submodule update --init
 ```
-
-The submodule URL is SSH, so access to `stx-labs/clarity-vision` is
-required to fetch it.
 
 ### Moving to a newer spec revision
 
