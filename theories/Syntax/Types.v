@@ -230,3 +230,140 @@ Register Scheme ty_ind as ind_nodep for ty.
 Example example_listings_type : ty :=
   TList (SLit 10)
     (TTuple [("id"%string, TUInt); ("price"%string, TUInt); ("seller"%string, TPrincipal)]).
+
+(** ** Decidable equality
+
+    The type checker compares types, and the semantics compares
+    principals and traits, so equality is decidable on all of them. Each
+    decision ends with [Defined] rather than [Qed] so that it computes
+    inside Rocq: an [if ty_eq_dec s t then ... else ...] reduces to one
+    of its branches, as [Example]s, conformance vectors and proofs by
+    computation need. The proof carried by [left] or [right] can use
+    opaque lemmas such as [standard_principal_ext]: computation only
+    needs to reach [left] or [right].
+
+    [decide equality] gets stuck on [ty], because it has no induction
+    hypothesis for the field types of a tuple. So equality on [ty] is
+    first a boolean function, [ty_eqb], proved correct with [ty_ind], and
+    [ty_eq_dec] is built from it. [ty_eqb] is also what executable code
+    such as the type checker can call. *)
+
+Lemma standard_principal_eq_dec (p q : standard_principal) :
+  {p = q} + {p <> q}.
+Proof.
+  destruct (Byte.byte_eq_dec (sp_version p) (sp_version q)) as [Hv | Hv];
+    [destruct (list_eq_dec Byte.byte_eq_dec (sp_hash p) (sp_hash q))
+       as [Hh | Hh] |].
+  - left. now apply standard_principal_ext.
+  - right. intros ->. now apply Hh.
+  - right. intros ->. now apply Hv.
+Defined.
+
+Lemma contract_id_eq_dec (c d : contract_id) : {c = d} + {c <> d}.
+Proof.
+  destruct (standard_principal_eq_dec (ci_issuer c) (ci_issuer d))
+    as [Hi | Hi];
+    [destruct (string_dec (ci_name c) (ci_name d)) as [Hn | Hn] |].
+  - left. now apply contract_id_ext.
+  - right. intros ->. now apply Hn.
+  - right. intros ->. now apply Hi.
+Defined.
+
+Lemma principal_eq_dec (p q : principal) : {p = q} + {p <> q}.
+Proof.
+  decide equality; [apply standard_principal_eq_dec | apply contract_id_eq_dec].
+Defined.
+
+Lemma trait_id_eq_dec (x y : trait_id) : {x = y} + {x <> y}.
+Proof. decide equality; [apply string_dec | apply contract_id_eq_dec]. Defined.
+
+Fixpoint ty_eqb (s t : ty) : bool :=
+  match s, t with
+  | TInt, TInt | TUInt, TUInt | TBool, TBool
+  | TPrincipal, TPrincipal | TNever, TNever => true
+  | TBuff n, TBuff m | TAscii n, TAscii m | TUtf8 n, TUtf8 m =>
+      if size_eq_dec n m then true else false
+  | TList n u, TList m v =>
+      if size_eq_dec n m then ty_eqb u v else false
+  | TOptional u, TOptional v => ty_eqb u v
+  | TResponse u e, TResponse v f => ty_eqb u v && ty_eqb e f
+  | TTuple fs, TTuple gs =>
+      (fix fields_eqb (fs gs : list (string * ty)) : bool :=
+         match fs, gs with
+         | [], [] => true
+         | (x, u) :: fs', (y, v) :: gs' =>
+             String.eqb x y && ty_eqb u v && fields_eqb fs' gs'
+         | _, _ => false
+         end) fs gs
+  | TTrait x, TTrait y => if trait_id_eq_dec x y then true else false
+  | TContract c, TContract d => if contract_id_eq_dec c d then true else false
+  | TVar x, TVar y => String.eqb x y
+  | _, _ => false
+  end.
+
+Lemma ty_eqb_true (s t : ty) : ty_eqb s t = true -> s = t.
+Proof.
+  (* Induction on [s] for every [t]: inner types are compared with other
+     types than [t]. Then split [t]; mismatched constructors give
+     [false = true]. *)
+  revert t; induction s; intros [] Heq; simpl in Heq; try discriminate;
+    (* Break the test into one fact per argument. *)
+    repeat match goal with
+      | H : _ && _ = true |- _ => apply andb_prop in H as [? ?]
+      (* A decision on sizes, traits or contracts: its [right] case gives
+         [false = true]. *)
+      | H : (if ?d then _ else false) = true |- _ =>
+          destruct d; [| discriminate]
+      | H : String.eqb _ _ = true |- _ => apply String.eqb_eq in H
+      (* An inner type: the induction hypothesis makes it equal. *)
+      | IH : forall t, ty_eqb ?u t = true -> ?u = t,
+        H : ty_eqb ?u _ = true |- _ => apply IH in H
+      end;
+    (* Every argument is equal, so the two types are. *)
+    subst; try reflexivity.
+  (* Tuples are left: walk both field lists together, with the induction
+     hypothesis for each field type from [Forall]. *)
+  revert fields0 Heq.
+  induction H as [| [x u] fs Hu _ IH]; intros [| [y v] gs] Heq;
+    (* Both empty, or lists of different lengths. *)
+    simpl in *; try discriminate; [reflexivity |].
+  (* Same name, same field type, and the rest by [IH]. *)
+  apply andb_prop in Heq as [Heq Hgs]. apply andb_prop in Heq as [Hx Huv].
+  apply String.eqb_eq in Hx as ->. apply Hu in Huv as ->.
+  specialize (IH gs Hgs). congruence.
+Qed.
+
+Lemma ty_eqb_refl (t : ty) : ty_eqb t t = true.
+Proof.
+  (* Compare each type with itself, constructor by constructor. *)
+  induction t; simpl;
+    (* A decision on two equal sizes, traits or contracts: its [right]
+       case claims [x <> x], a contradiction. *)
+    repeat match goal with
+      | |- context [if ?d then _ else false] =>
+          destruct d; [| congruence]
+      end;
+    (* Equal names compare [true]; an inner type does by induction. *)
+    rewrite ?String.eqb_refl, ?andb_true_r; auto.
+  (* Responses: both inner types, by induction. *)
+  - now rewrite IHt1, IHt2.
+  (* Tuples: walk the field list, with the induction hypothesis for each
+     field type from [Forall]. *)
+  - induction H as [| [x u] fs Hu _ IH]; simpl in *; [reflexivity |].
+    now rewrite String.eqb_refl, Hu, IH.
+Qed.
+
+Lemma ty_eqb_eq (s t : ty) : ty_eqb s t = true <-> s = t.
+Proof. split; [apply ty_eqb_true | intros ->; apply ty_eqb_refl]. Qed.
+
+Lemma ty_eq_dec (s t : ty) : {s = t} + {s <> t}.
+Proof.
+  destruct (ty_eqb s t) eqn:E; [left | right].
+  - now apply ty_eqb_eq.
+  - intros H. apply ty_eqb_eq in H. congruence.
+Defined.
+
+Example ty_eq_dec_computes :
+  (if ty_eq_dec example_listings_type example_listings_type then 1 else 2) = 1
+  /\ (if ty_eq_dec (TOptional TInt) (TOptional TUInt) then 1 else 2) = 2.
+Proof. split; reflexivity. Qed.
