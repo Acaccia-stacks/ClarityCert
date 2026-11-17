@@ -9,6 +9,7 @@ From Stdlib Require Export
   NArith
   ZArith
   String
-  List.
+  List
+  Lia.
 
 Export ListNotations.
