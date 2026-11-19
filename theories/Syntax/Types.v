@@ -11,7 +11,7 @@ From ClarityCert Require Import
   Common.Limits
   Syntax.Lexical.
 
-From Stdlib Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec OrderedTypeEx.
 
 (** ** Principals and identifiers
 
@@ -126,7 +126,7 @@ Proof. decide equality; [apply N.eq_dec | apply string_dec]. Defined.
     A tuple type lists its fields as (name, type) pairs. A field name is
     any identifier, keywords included (2.5.1). The fields of a well-formed
     tuple type are distinct and in ascending byte order of name, as in
-    the canonical encoding (value layer, section 3).
+    the type encoding (value layer, section 4.2).
 
     A plain [string] is enough for field names, without proofs as in
     the principal records:
@@ -451,4 +451,140 @@ Example sequence_examples :
   /\ option_map (fun p => elem_ty (fst p)) (as_seq (TUtf8 (SLit 20)))
        = Some (TUtf8 (SLit 1))
   /\ is_sequence TInt = false.
+Proof. repeat split. Qed.
+
+(** ** Structural predicates
+
+    Later rules ask what a type contains, at any depth:
+    - a type or size variable ([has_var]): storable and interface types
+      have none (2.3.4), and neither do the types of public and
+      read-only functions, storage or constants (2.3.5);
+    - a trait type ([has_trait]): storable types have none (2.3.4);
+    - the internal contract-literal type ([has_contract]): it is never an
+      interface or storable type (2.3.1).
+    All three are instances of [ty_existsb p q t]: some type inside [t],
+    [t] included, satisfies [p], or some size inside [t] satisfies [q].
+
+    [sorted_tuples t] holds when the fields of every tuple in [t] are in
+    strictly ascending byte order of name. The spec has no such
+    predicate: it is how the formalization represents a tuple type. A
+    tuple type denotes "records with exactly the listed fields" whose
+    names "MUST be distinct" (2.3.1), so the order in which source lists
+    them does not matter, and elaboration sorts them and rejects a
+    repeated name (5.4, C15). Keeping every type sorted makes two types
+    with the same fields the same term, so types compare structurally.
+    The order is the one of the type encoding (value layer, section 4.2)
+    and of tuple values on the wire (section 3). Since it is strict, the
+    names are distinct: [fields_sorted_nodup]. *)
+
+Fixpoint ty_existsb (p : ty -> bool) (q : size -> bool) (t : ty) : bool :=
+  p t
+  || match t with
+     | TBuff n | TAscii n | TUtf8 n => q n
+     | TList n u => q n || ty_existsb p q u
+     | TOptional u => ty_existsb p q u
+     | TResponse u e => ty_existsb p q u || ty_existsb p q e
+     | TTuple fields => existsb (fun f => ty_existsb p q (snd f)) fields
+     | _ => false
+     end.
+
+Definition has_var (t : ty) : bool :=
+  ty_existsb
+    (fun u => match u with TVar _ => true | _ => false end)
+    (fun n => match n with SVar _ => true | SLit _ => false end)
+    t.
+
+Definition has_trait (t : ty) : bool :=
+  ty_existsb
+    (fun u => match u with TTrait _ => true | _ => false end)
+    (fun _ => false)
+    t.
+
+Definition has_contract (t : ty) : bool :=
+  ty_existsb
+    (fun u => match u with TContract _ => true | _ => false end)
+    (fun _ => false)
+    t.
+
+(** Strictly ascending: each name is below the next. [String.ltb]
+    compares byte by byte, a proper prefix first. [names_sorted] and its
+    lemmas are local to this file: elsewhere, use [fields_sorted] and
+    [fields_sorted_nodup]. *)
+#[local] Fixpoint names_sorted (xs : list string) : bool :=
+  match xs with
+  | x :: (y :: _) as rest => String.ltb x y && names_sorted rest
+  | _ => true
+  end.
+
+Definition fields_sorted (fields : list (string * ty)) : bool :=
+  names_sorted (map fst fields).
+
+Definition sorted_tuples (t : ty) : bool :=
+  negb
+    (ty_existsb
+       (fun u => match u with TTuple fs => negb (fields_sorted fs) | _ => false end)
+       (fun _ => false)
+       t).
+
+(** Every name after the first is above it, by transitivity. *)
+#[local] Lemma names_sorted_lt (x : string) (xs : list string) :
+  names_sorted (x :: xs) = true -> Forall (String_as_OT.lt x) xs.
+Proof.
+  revert x; induction xs as [| y ys IH]; intros x H; [constructor |].
+  simpl in H. apply andb_prop in H as [Hxy Hys].
+  assert (Hlt : String_as_OT.lt x y).
+  { apply String_as_OT.cmp_lt. unfold String_as_OT.cmp, String.ltb in *.
+    now destruct (String.compare x y). }
+  constructor; [exact Hlt |].
+  (* Each later name is above [y], hence above [x]. *)
+  apply (Forall_impl _ (fun z Hyz => String_as_OT.lt_trans _ _ _ Hlt Hyz)).
+  now apply IH.
+Qed.
+
+#[local] Lemma names_sorted_tail (x : string) (xs : list string) :
+  names_sorted (x :: xs) = true -> names_sorted xs = true.
+Proof.
+  destruct xs as [| y ys]; [reflexivity |].
+  simpl. now intros [_ H]%andb_prop.
+Qed.
+
+#[local] Lemma names_sorted_nodup (xs : list string) :
+  names_sorted xs = true -> NoDup xs.
+Proof.
+  induction xs as [| x xs IH]; intros H; constructor.
+  - (* [x] is below every later name, so not equal to any. *)
+    intros Hin. apply names_sorted_lt in H.
+    rewrite Forall_forall in H. specialize (H x Hin).
+    now apply (String_as_OT.lt_not_eq x x).
+  - apply IH. now apply names_sorted_tail in H.
+Qed.
+
+Lemma fields_sorted_nodup (fields : list (string * ty)) :
+  fields_sorted fields = true -> NoDup (map fst fields).
+Proof. apply names_sorted_nodup. Qed.
+
+Lemma sorted_tuples_inv (fields : list (string * ty)) :
+  sorted_tuples (TTuple fields) = true ->
+  fields_sorted fields = true
+  /\ Forall (fun f => sorted_tuples (snd f) = true) fields.
+Proof.
+  unfold sorted_tuples; simpl. rewrite negb_orb, negb_involutive.
+  intros [Hs Hfs]%andb_prop. split; [exact Hs |].
+  (* No field type has a bad tuple, or [existsb] would find it. *)
+  rewrite Forall_forall. intros f Hf.
+  apply negb_true_iff, Bool.not_true_iff_false. intros Hex.
+  apply negb_true_iff in Hfs.
+  rewrite (proj2 (existsb_exists _ _)) in Hfs; [discriminate | now exists f].
+Qed.
+
+(** The listings type has no variable and its tuple is sorted. A size
+    variable is a variable. [{ b: int, a: int }] is not sorted; nor is a
+    tuple with a repeated name, nested in an optional. *)
+Example structural_examples :
+  has_var example_listings_type = false
+  /\ sorted_tuples example_listings_type = true
+  /\ has_var (TList (SVar "N") TInt) = true
+  /\ sorted_tuples (TTuple [("b"%string, TInt); ("a"%string, TInt)]) = false
+  /\ sorted_tuples
+       (TOptional (TTuple [("a"%string, TInt); ("a"%string, TBool)])) = false.
 Proof. repeat split. Qed.
