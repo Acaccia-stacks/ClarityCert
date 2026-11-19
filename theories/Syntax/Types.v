@@ -367,3 +367,88 @@ Example ty_eq_dec_computes :
   (if ty_eq_dec example_listings_type example_listings_type then 1 else 2) = 1
   /\ (if ty_eq_dec (TOptional TInt) (TOptional TUInt) then 1 else 2) = 2.
 Proof. split; reflexivity. Qed.
+
+(** ** Sequence types and element types
+
+    [(buff N)], [(string-ascii N)], [(string-utf8 N)] and [(list N T)] are
+    the sequence types. Their element types are [(buff 1)],
+    [(string-ascii 1)], [(string-utf8 1)] and [T] (spec 2.3.1): an
+    element of a string is a one-character string, a code point for
+    [string-utf8].
+
+    The primitive signatures quantify over a sequence kind [S], write
+    [S[N]] for that kind with bound [N] and [elem(S)] for its element type
+    (spec 3.3). A kind is a sequence type without its bound, so the list
+    kind keeps its element type: [(list N T)] is [KList T] with bound [N].
+    [seq_ty] and [as_seq] go between the two views. *)
+
+Inductive seq_kind :=
+| KBuff
+| KAscii
+| KUtf8
+| KList (t : ty).
+
+Lemma seq_kind_eq_dec (k l : seq_kind) : {k = l} + {k <> l}.
+Proof. decide equality; apply ty_eq_dec. Defined.
+
+(** [S[N]]. *)
+Definition seq_ty (k : seq_kind) (n : size) : ty :=
+  match k with
+  | KBuff => TBuff n
+  | KAscii => TAscii n
+  | KUtf8 => TUtf8 n
+  | KList t => TList n t
+  end.
+
+(** [elem(S)]. *)
+Definition elem_ty (k : seq_kind) : ty :=
+  match k with
+  | KBuff => TBuff (SLit 1)
+  | KAscii => TAscii (SLit 1)
+  | KUtf8 => TUtf8 (SLit 1)
+  | KList t => t
+  end.
+
+(** The kind and bound of a sequence type; [None] for any other type. *)
+Definition as_seq (t : ty) : option (seq_kind * size) :=
+  match t with
+  | TBuff n => Some (KBuff, n)
+  | TAscii n => Some (KAscii, n)
+  | TUtf8 n => Some (KUtf8, n)
+  | TList n u => Some (KList u, n)
+  | _ => None
+  end.
+
+Definition is_sequence (t : ty) : bool :=
+  match as_seq t with
+  | Some _ => true
+  | None => false
+  end.
+
+Lemma as_seq_seq_ty (k : seq_kind) (n : size) :
+  as_seq (seq_ty k n) = Some (k, n).
+Proof. now destruct k. Qed.
+
+Lemma as_seq_some (t : ty) (k : seq_kind) (n : size) :
+  as_seq t = Some (k, n) -> t = seq_ty k n.
+Proof. destruct t; simpl; intros H; try discriminate; now inversion H. Qed.
+
+Lemma is_sequence_iff (t : ty) :
+  is_sequence t = true <-> exists k n, t = seq_ty k n.
+Proof.
+  unfold is_sequence. split.
+  - destruct (as_seq t) as [[k n] |] eqn:E; [| discriminate].
+    intros _. exists k, n. now apply as_seq_some.
+  - intros (k & n & ->). now rewrite as_seq_seq_ty.
+Qed.
+
+(** The listings type is a list of tuples; a [(string-utf8 20)] has
+    elements of type [(string-utf8 1)]; [int] is not a sequence. *)
+Example sequence_examples :
+  as_seq example_listings_type
+    = Some (KList (TTuple [("id"%string, TUInt); ("price"%string, TUInt);
+                           ("seller"%string, TPrincipal)]), SLit 10)
+  /\ option_map (fun p => elem_ty (fst p)) (as_seq (TUtf8 (SLit 20)))
+       = Some (TUtf8 (SLit 1))
+  /\ is_sequence TInt = false.
+Proof. repeat split. Qed.

@@ -18,10 +18,10 @@ they will cover. Written so far:
 | `Common/Base.v` | Shared Stdlib imports |
 | `Common/Limits.v` | Language limits (2.8) |
 | `Syntax/Lexical.v` | Contract names |
-| `Syntax/Types.v` | Principals and trait identifiers; sizes; the type grammar with its induction principle; decidable equality on principals and types |
+| `Syntax/Types.v` | Principals and trait identifiers; sizes; the type grammar with its induction principle; decidable equality on principals and types; sequence kinds and element types |
 
-Next: the rest of `Syntax/Types.v` (sequence and element types,
-structural predicates, storable and interface types, reference kinds),
+Next: the rest of `Syntax/Types.v` (structural predicates, storable and
+interface types, reference kinds),
 then values, the abstract syntax and subtyping. No metatheorem is
 stated yet.
 
