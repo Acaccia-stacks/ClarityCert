@@ -588,3 +588,47 @@ Example structural_examples :
   /\ sorted_tuples
        (TOptional (TTuple [("a"%string, TInt); ("a"%string, TBool)])) = false.
 Proof. repeat split. Qed.
+
+(** ** Storable types and interface types
+
+    A type is storable if it contains no trait type and no type or size
+    variable; only storable types appear in storage definitions and in
+    [from-consensus-buff?] (spec 2.3.4). A type is an interface type if
+    it contains no type or size variable; trait types are allowed. Only
+    interface types appear in the parameters and results of public and
+    read-only functions, in trait definitions and in event definitions
+    (2.3.4).
+
+    Neither may contain the internal contract-literal type, which "is
+    never an interface or storable type" (2.3.1). Both may contain
+    [never] (2.3.3).
+
+    Every storable type is an interface type ([storable_interface]): the
+    two differ only on traits. *)
+
+Definition interface (t : ty) : bool :=
+  negb (has_var t) && negb (has_contract t).
+
+Definition storable (t : ty) : bool :=
+  interface t && negb (has_trait t).
+
+Lemma storable_interface (t : ty) :
+  storable t = true -> interface t = true.
+Proof. unfold storable. now intros [H _]%andb_prop. Qed.
+
+(** A trait, for the examples: [extension] of the example contract. *)
+Example example_trait : trait_id :=
+  {| ti_contract := example_contract; ti_name := "extension" |}.
+
+(** The registry of 2.3.4 stores principals, not trait values:
+    [principal] is storable, [(trait extension)] is an interface type
+    but not storable, and [(list N int)], with a size variable, is
+    neither. [(response bool never)], the result type of a public
+    function that cannot fail, is both. *)
+Example storable_examples :
+  storable TPrincipal = true
+  /\ interface (TTrait example_trait) = true
+  /\ storable (TTrait example_trait) = false
+  /\ interface (TList (SVar "N") TInt) = false
+  /\ storable (TResponse TBool TNever) = true.
+Proof. repeat split. Qed.
