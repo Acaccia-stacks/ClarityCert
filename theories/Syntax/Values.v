@@ -197,3 +197,88 @@ Example example_listing : value :=
     [("id"%string, VUInt {| rval := 1%Z; rwf := eq_refl |});
      ("price"%string, VUInt {| rval := 100%Z; rwf := eq_refl |});
      ("seller"%string, VPrincipal (PStandard example_principal))].
+
+(** ** Values of a type
+
+    [value_has_type v t] says whether [v] is a value of type [t] (spec
+    2.3.1):
+    - a sequence fits when its length is within the bound: bytes for
+      [buff] and [string-ascii], code points for [string-utf8], elements
+      for [list], whose elements all have the element type;
+    - [none] has every optional type, [(ok v)] and [(err v)] the response
+      types whose side has [v]'s type;
+    - a tuple has exactly the type's fields, in the same order, each with
+      its field type; as the fields of a type are sorted
+      ([sorted_tuples]), so are those of its values;
+    - [never] has no value ([never_empty], 2.3.3);
+    - a trait type [(trait X)] has every contract principal. Conformance
+      is checked at compile time, never at runtime: a principal passed
+      in a trait-typed parameter is not checked against the trait (2.5.8),
+      and decoding a [(trait X)] admits any contract principal (value
+      layer, section 3). The contract-literal type has its one
+      principal.
+
+    Runtime values have closed types: instantiation replaces type and
+    size variables (2.6.2). A type or size variable has no value here,
+    but [none] still has type [(optional T)]; on a type with variables
+    ([has_var]) the answer has no meaning, and lemmas assume there is
+    none. *)
+
+(** A length within a size bound; a size variable bounds nothing. *)
+Definition fits (n : size) (len : nat) : bool :=
+  match n with
+  | SLit m => (N.of_nat len <=? m)%N
+  | SVar _ => false
+  end.
+
+Fixpoint value_has_type (v : value) (t : ty) : bool :=
+  match v, t with
+  | VInt _, TInt | VUInt _, TUInt | VBool _, TBool => true
+  | VPrincipal _, TPrincipal => true
+  | VPrincipal (PContract _), TTrait _ => true
+  | VPrincipal (PContract c), TContract d =>
+      if contract_id_eq_dec c d then true else false
+  | VBuff bs, TBuff n => fits n (length bs)
+  | VAscii s, TAscii n => fits n (length s)
+  | VUtf8 s, TUtf8 n => fits n (length s)
+  | VList vs, TList n u =>
+      fits n (length vs) && forallb (fun w => value_has_type w u) vs
+  | VNone, TOptional _ => true
+  | VSome w, TOptional u => value_has_type w u
+  | VOk w, TResponse u _ => value_has_type w u
+  | VErr w, TResponse _ e => value_has_type w e
+  | VTuple fs, TTuple gs =>
+      (fix fields_have_types (fs : list (string * value))
+           (gs : list (string * ty)) : bool :=
+         match fs, gs with
+         | [], [] => true
+         | (x, w) :: fs', (y, u) :: gs' =>
+             String.eqb x y && value_has_type w u && fields_have_types fs' gs'
+         | _, _ => false
+         end) fs gs
+  | _, _ => false
+  end.
+
+Lemma never_empty (v : value) : value_has_type v TNever = false.
+Proof.
+  (* A principal is matched on its kind, so split it too. *)
+  destruct v; try destruct p; reflexivity.
+Qed.
+
+(** The listing has the element type of [example_listings_type], and a
+    list of it the listings type. [none] is an [(optional never)], but
+    no [some] is. [(err u1)] is not a [(response bool never)]. Three
+    bytes do not fit a [(buff 2)]. A tuple with its fields out of order
+    has no tuple type. *)
+Example value_has_type_examples :
+  value_has_type (VList [example_listing]) example_listings_type = true
+  /\ value_has_type VNone (TOptional TNever) = true
+  /\ value_has_type (VSome (VBool true)) (TOptional TNever) = false
+  /\ value_has_type (VErr (VUInt {| rval := 1%Z; rwf := eq_refl |}))
+       (TResponse TBool TNever) = false
+  /\ value_has_type (VBuff [Byte.x01; Byte.x02; Byte.x03]) (TBuff (SLit 2))
+     = false
+  /\ value_has_type
+       (VTuple [("b"%string, VBool true); ("a"%string, VBool true)])
+       (TTuple [("a"%string, TBool); ("b"%string, TBool)]) = false.
+Proof. repeat split. Qed.
