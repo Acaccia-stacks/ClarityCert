@@ -7,6 +7,7 @@
 From ClarityCert Require Import
   Common.Base
   Syntax.Lexical
+  Syntax.Principals
   Syntax.Types.
 
 (** ** Integers

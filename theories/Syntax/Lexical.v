@@ -18,7 +18,7 @@ From Stdlib Require Import Ascii.
     A contract name is 1 to 40 characters: an ASCII letter, then letters,
     digits, [-] or [_] (spec 2.2, chain ABI 2.1). The same rule applies
     wherever a contract name appears, in literals, at runtime and on the
-    wire, so it is also an invariant of principal values ([Syntax.Types]).
+    wire, so it is also an invariant of principal values ([Syntax.Principals]).
     Stated as a boolean so that it can be carried as a proof of
     [valid_contract_name s = true]. *)
 

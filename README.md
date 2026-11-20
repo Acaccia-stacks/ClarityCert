@@ -18,7 +18,8 @@ they will cover. Written so far:
 | `Common/Base.v` | Shared Stdlib imports |
 | `Common/Limits.v` | Language limits (2.8) |
 | `Syntax/Lexical.v` | Contract names; the `string-ascii` character set and Unicode scalar values |
-| `Syntax/Types.v` | Principals and trait identifiers; sizes; the type grammar with its induction principle; decidable equality on principals and types; sequence kinds and element types; structural predicates (variables, traits, contract literals, sorted tuple fields); storable and interface types; static reference kinds |
+| `Syntax/Principals.v` | Standard and contract principals, contract and trait identifiers, with their rules built in; decidable equality |
+| `Syntax/Types.v` | Sizes; the type grammar with its induction principle; decidable equality on types; sequence kinds and element types; structural predicates (variables, traits, contract literals, sorted tuple fields); storable and interface types; static reference kinds |
 | `Syntax/Values.v` | 128-bit integers; string characters; values with their induction principle; values of a type |
 
 Next: the rest of values, the abstract syntax and subtyping. The type
@@ -32,7 +33,7 @@ Open spec findings are listed in `docs/findings.md`.
 clarity-vision/        The specification (git submodule, pinned revision)
 theories/              Rocq sources (logical root: ClarityCert)
   Common/                Shared Rocq imports; language limits
-  Syntax/                Lexical rules, types, values, abstract syntax
+  Syntax/                Lexical rules, principals, types, values, abstract syntax
   Host/                  Abstract chain ABI: crypto, value layer, host functions
   Typing/                Subtyping, instantiation, macro expansion, typing, static checks
   Primitives/            Signatures and semantics of the 71 core primitives
@@ -89,6 +90,7 @@ chain ABI documents are at the root of `clarity-vision/`.
 | 5 Grammar, `grammar/clarity.ebnf`: tokens and layout (Part L, T1–T4, W1), lexical checks (LX1–LX7) | `Syntax/Lexical.v` |
 | 5 Grammar: forms (Part S); 5.4 what it leaves to the type checker (C1–C15) | `Syntax/Ast.v`, `Typing/StaticChecks.v`, `Typing/Typing.v` |
 | `08-value-interpretation.md` (chain ABI, value layer) | `Host/Abi.v` (abstract) |
+| `07-chain-abi.md` 2.1–2.2 (contract names, principals) | `Syntax/Lexical.v`, `Syntax/Principals.v` |
 | `07-chain-abi.md` (chain ABI, runtime layer) | `Host/Interface.v` (abstract) |
 
 ## Working with the specification

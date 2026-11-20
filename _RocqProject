@@ -4,6 +4,7 @@ theories/Common/Base.v
 theories/Common/Limits.v
 
 theories/Syntax/Lexical.v
+theories/Syntax/Principals.v
 theories/Syntax/Types.v
 theories/Syntax/Values.v
 theories/Syntax/Ast.v
