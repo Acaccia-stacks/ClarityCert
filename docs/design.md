@@ -267,6 +267,51 @@ The spec plan lists first-class verification annotations (invariants,
 pre- and postconditions) as a language design opportunity. If they are
 adopted, they become goals stated in this logic.
 
+## Conventions
+
+Rules the Rocq sources follow throughout. Modules explain only what is
+specific to them.
+
+- **Invariants are part of the representation.** A rule that holds of
+  every value of a kind (an integer's range, a character's set, a
+  principal's version and hash length) is stored with the value as a
+  boolean proof, `p x = true`: `refined` in `Common/Base.v`, and the
+  principal records. Invalid values cannot be represented. Two proofs of
+  a boolean equation are equal (`UIP_dec`), so two such values are equal
+  when their data are (the `_ext` lemmas), with no axiom. A rule whose
+  violation is an error to report (a repeated tuple field, C15) is a
+  predicate instead, since the checker must be able to see the invalid
+  input.
+- **Predicates are boolean functions.** `storable`, `sorted_tuples`,
+  `value_has_type` and the like return `bool`, so they compute, and
+  examples are checked by `reflexivity`. A `b` suffix marks the boolean
+  version of a relation that also has a `Prop` form (`ty_eqb`), with a
+  lemma linking the two (`ty_eqb_eq`).
+- **Decisions end with `Defined`.** A decision such as
+  `ty_eq_dec : {s = t} + {s <> t}` is a function that later code branches
+  on. Ending it with `Qed` would make it opaque, and an
+  `if ty_eq_dec s t then … else …` would never reduce, inside examples,
+  conformance vectors or proofs by computation. Ending it with `Defined`
+  keeps it computable. The proof inside `left` or `right` may use opaque
+  lemmas: computation only needs to reach `left` or `right`. Lemmas that
+  only state facts end with `Qed`.
+- **Nested inductives get their own induction principle.** For a type
+  that contains itself through `list` or `prod` (tuple types, lists of
+  values), the principle Rocq generates gives no induction hypothesis for
+  the nested occurrences. Generation is turned off around the inductive
+  (`Local Unset Elimination Schemes`), a principle over `Forall` is
+  written by hand under the usual name (`ty_ind`), and it is registered
+  (`Register Scheme … as ind_nodep`), so a plain `induction` uses it.
+  Equality on such a type is a boolean function proved correct, since
+  `decide equality` gets stuck on the nested occurrences.
+- **Helpers stay local.** A definition or lemma used only to prove a
+  module's own results is `#[local]`, so importers see only the public
+  statement (`fields_sorted_nodup`, not `names_sorted_nodup`).
+- **Examples come from the spec.** Each section ends with an `Example`
+  checked by computation, built from cases the spec states (the listings
+  event of 3.10, the registry of 2.3.4), so a definition is pinned to
+  what the spec says and not only to the lemmas proved about it.
+
 ## Libraries
 
 | Use | Library | Where |
