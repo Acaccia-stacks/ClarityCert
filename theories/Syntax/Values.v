@@ -96,3 +96,104 @@ Example string_examples :
   /\ option_map rval (refined_of is_ascii_byte Byte.x41) = Some Byte.x41
   /\ refined_of is_ascii_byte Byte.x7f = None.
 Proof. repeat split. Qed.
+
+(** ** Values
+
+    The runtime values: one constructor for each kind of value of the
+    type grammar (spec 2.3.1), and for each value prefix of the canonical
+    encoding (value layer, section 3). A value carries no static type
+    information (2.7.1): a list does not record its element type, and
+    [none] or [(err e)] does not record the other side of its type.
+    Whether a value has a type is a relation, stated in a later section.
+
+    Contract-literal and trait-typed values are contract principals,
+    [VPrincipal (PContract c)]: the type that names one contract, or a
+    trait it conforms to, is static (2.3.1). Integers and characters are
+    in range by construction ([int128], [uint128], [ascii_char],
+    [code_point]). A buffer is a list of bytes. A tuple lists its fields
+    as (name, value) pairs; as for tuple types, the order and distinctness
+    of the names is a predicate, not part of [value].
+
+    As for [ty], the generated induction principle has no hypothesis for
+    the elements of a list or the fields of a tuple, so it is turned off
+    and [value_ind] is written here, with [Forall] for both. *)
+
+Local Unset Elimination Schemes.
+
+Inductive value :=
+| VInt (i : int128)
+| VUInt (u : uint128)
+| VBool (b : bool)
+| VPrincipal (p : principal)
+| VBuff (bs : list Byte.byte)
+| VAscii (s : ascii_string)
+| VUtf8 (s : utf8_string)
+| VList (vs : list value)
+| VNone
+| VSome (v : value)
+| VOk (v : value)
+| VErr (v : value)
+| VTuple (fields : list (string * value)).
+
+Local Set Elimination Schemes.
+
+Section ValueInd.
+  Variable P : value -> Prop.
+
+  Hypothesis H_int : forall i, P (VInt i).
+  Hypothesis H_uint : forall u, P (VUInt u).
+  Hypothesis H_bool : forall b, P (VBool b).
+  Hypothesis H_principal : forall p, P (VPrincipal p).
+  Hypothesis H_buff : forall bs, P (VBuff bs).
+  Hypothesis H_ascii : forall s, P (VAscii s).
+  Hypothesis H_utf8 : forall s, P (VUtf8 s).
+  Hypothesis H_list : forall vs, Forall P vs -> P (VList vs).
+  Hypothesis H_none : P VNone.
+  Hypothesis H_some : forall v, P v -> P (VSome v).
+  Hypothesis H_ok : forall v, P v -> P (VOk v).
+  Hypothesis H_err : forall v, P v -> P (VErr v).
+  Hypothesis H_tuple :
+    forall fields, Forall (fun f => P (snd f)) fields -> P (VTuple fields).
+
+  Fixpoint value_ind (v : value) : P v :=
+    match v with
+    | VInt i => H_int i
+    | VUInt u => H_uint u
+    | VBool b => H_bool b
+    | VPrincipal p => H_principal p
+    | VBuff bs => H_buff bs
+    | VAscii s => H_ascii s
+    | VUtf8 s => H_utf8 s
+    | VList vs =>
+        H_list vs
+          ((fix elems_ind (ws : list value) : Forall P ws :=
+              match ws with
+              | [] => Forall_nil _
+              | w :: rest => Forall_cons w (value_ind w) (elems_ind rest)
+              end) vs)
+    | VNone => H_none
+    | VSome w => H_some w (value_ind w)
+    | VOk w => H_ok w (value_ind w)
+    | VErr w => H_err w (value_ind w)
+    | VTuple fields =>
+        H_tuple fields
+          ((fix fields_ind (fs : list (string * value))
+              : Forall (fun f => P (snd f)) fs :=
+              match fs with
+              | [] => Forall_nil _
+              | (x, w) :: rest =>
+                  Forall_cons (x, w) (value_ind w) (fields_ind rest)
+              end) fields)
+    end.
+End ValueInd.
+
+Register Scheme value_ind as ind_nodep for value.
+
+(** A value of [example_listings_type]'s element type: listing 1, at
+    price 100, by [example_principal]. A literal integer is built with
+    [eq_refl] as its range proof. *)
+Example example_listing : value :=
+  VTuple
+    [("id"%string, VUInt {| rval := 1%Z; rwf := eq_refl |});
+     ("price"%string, VUInt {| rval := 100%Z; rwf := eq_refl |});
+     ("seller"%string, VPrincipal (PStandard example_principal))].
