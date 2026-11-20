@@ -6,6 +6,7 @@
 
 From ClarityCert Require Import
   Common.Base
+  Syntax.Lexical
   Syntax.Types.
 
 (** ** Integers
@@ -64,3 +65,34 @@ Example integer_examples :
 Proof. repeat split. Qed.
 
 End Integers.
+
+(** ** String characters
+
+    A [string-ascii] value is a sequence of bytes from the [string-ascii]
+    character set, and a [string-utf8] value a sequence of Unicode scalar
+    values ([Syntax.Lexical], spec 2.2). Both are lists of characters,
+    each a refinement by its set: of [Byte.byte] for [string-ascii], as
+    for buffers, and of [N] for [string-utf8], whose code points go up to
+    U+10FFFF. So a substring, a concatenation or a filtered string needs
+    no new proof. The length of the list is what the type's bound counts:
+    bytes for [string-ascii], code points for [string-utf8] (2.3.1). A
+    [string-utf8] value is encoded in UTF-8 only at the chain ABI
+    ([Host.Abi]). *)
+
+Definition is_ascii_byte (b : Byte.byte) : bool :=
+  in_ascii_charset (Byte.to_N b).
+
+Definition ascii_char : Type := refined is_ascii_byte.
+Definition code_point : Type := refined is_scalar_value.
+
+Definition ascii_string : Type := list ascii_char.
+Definition utf8_string : Type := list code_point.
+
+(** The [\u{E9}] of [u"caf\u{E9}"] is a character; a surrogate is not,
+    and neither is the byte DEL in a [string-ascii]. *)
+Example string_examples :
+  option_map rval (refined_of is_scalar_value 0xE9%N) = Some 0xE9%N
+  /\ refined_of is_scalar_value 0xD800%N = None
+  /\ option_map rval (refined_of is_ascii_byte Byte.x41) = Some Byte.x41
+  /\ refined_of is_ascii_byte Byte.x7f = None.
+Proof. repeat split. Qed.
