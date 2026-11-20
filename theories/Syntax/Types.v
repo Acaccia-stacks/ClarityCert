@@ -632,3 +632,60 @@ Example storable_examples :
   /\ interface (TList (SVar "N") TInt) = false
   /\ storable (TResponse TBool TNever) = true.
 Proof. repeat split. Qed.
+
+(** ** Static reference kinds
+
+    A parameter of a [define-private] or [define-macro] may refer
+    statically to a definition of the current contract instead of
+    holding a value: a data variable, a map, a fungible or non-fungible
+    token, an event, or a function (spec 2.3.7). Its reference kind
+    gives the shape of the definition it accepts. Reference kinds are not
+    types: they cannot appear in [let] bindings, storage, interfaces,
+    tuples or sequences, so they are a separate inductive, and a
+    parameter has a type or a reference kind ([param_ty]).
+
+    How an argument's types must relate to the kind's (identical for
+    [var], [map] and [non-fungible-token], a supertype for [event], the
+    rule of 2.6.2 for [function]) is part of instantiation, in
+    [Typing.Instantiation]. A type or size variable may occur in a
+    reference kind (2.3.5); [ref_kind_tys] lists the types a kind
+    mentions. *)
+
+Inductive ref_kind :=
+| RVar (t : ty)
+| RMap (k v : ty)
+| RFungibleToken
+| RNonFungibleToken (t : ty)
+| REvent (t : ty)
+| RFunction (params : list ty) (result : ty).
+
+Inductive param_ty :=
+| PTy (t : ty)
+| PRef (r : ref_kind).
+
+Lemma ref_kind_eq_dec (r s : ref_kind) : {r = s} + {r <> s}.
+Proof.
+  decide equality;
+    solve [apply ty_eq_dec | apply (list_eq_dec ty_eq_dec)].
+Defined.
+
+Lemma param_ty_eq_dec (p q : param_ty) : {p = q} + {p <> q}.
+Proof. decide equality; [apply ty_eq_dec | apply ref_kind_eq_dec]. Defined.
+
+Definition ref_kind_tys (r : ref_kind) : list ty :=
+  match r with
+  | RVar t | RNonFungibleToken t | REvent t => [t]
+  | RMap k v => [k; v]
+  | RFungibleToken => []
+  | RFunction params result => params ++ [result]
+  end.
+
+(** The registry map of 2.3.4 as a reference, [(map uint principal)];
+    the event parameter of the overload example of 2.6.2,
+    [(event (buff 4))]; and a generic predicate on elements,
+    [(function (T) bool)], whose type variable [has_var] finds. *)
+Example ref_kind_examples :
+  ref_kind_tys (RMap TUInt TPrincipal) = [TUInt; TPrincipal]
+  /\ ref_kind_tys (REvent (TBuff (SLit 4))) = [TBuff (SLit 4)]
+  /\ existsb has_var (ref_kind_tys (RFunction [TVar "T"] TBool)) = true.
+Proof. repeat split. Qed.
