@@ -139,3 +139,36 @@ Example example_src_trait : src_ty :=
     (TraitLit
        (ContractRel {| rval := "registry"%string; rwf := eq_refl |})
        "extension").
+
+(** ** Literals
+
+    The literals of an expression (grammar S.3, spec 2.2). The lexer
+    decodes each token into what it denotes, so a literal holds a value
+    of the matching kind, with the parse errors of 5.3 already ruled out
+    by the representation:
+    - an integer is in range: LX1 and LX6 for [int], LX3 for [uint]. A
+      numeral in expression position is an [int] (LX6), also where a
+      size term is expected (C11);
+    - a string holds its characters, escapes decoded: [string-ascii]
+      bytes, or [string-utf8] scalar values (LX5);
+    - a standard principal is decoded from c32check (LX4);
+    - a buffer is its bytes.
+    A contract principal may be relative to the deployer ([.c]), so it
+    is a [src_contract]; its value is fixed during elaboration, once the
+    deployer is known ([Typing.Elaborate]). A trait identifier is not a literal: it appears
+    only in types and trait references. *)
+
+Inductive literal :=
+| LInt (i : int128)
+| LUInt (u : uint128)
+| LBool (b : bool)
+| LBuff (bs : list Byte.byte)
+| LAscii (s : ascii_string)
+| LUtf8 (s : utf8_string)
+| LPrincipal (p : standard_principal)
+| LContract (c : src_contract)
+| LNone.
+
+(** [.counter], a contract relative to the deployer (2.2). *)
+Example example_contract_literal : literal :=
+  LContract (ContractRel {| rval := "counter"%string; rwf := eq_refl |}).
