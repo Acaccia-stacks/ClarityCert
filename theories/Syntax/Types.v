@@ -525,7 +525,11 @@ Proof. repeat split. Qed.
     gives the shape of the definition it accepts. Reference kinds are not
     types: they cannot appear in [let] bindings, storage, interfaces,
     tuples or sequences, so they are a separate inductive, and a
-    parameter has a type or a reference kind ([param_ty]).
+    parameter has a type or a reference kind ([param_kind]).
+
+    Both are parametric in the types they contain: [ref_kind ty] after
+    elaboration, and the same shape over source types in [Syntax.Ast],
+    where a name in type position is not resolved yet.
 
     How an argument's types must relate to the kind's (identical for
     [var], [map] and [non-fungible-token], a supertype for [event], the
@@ -534,28 +538,43 @@ Proof. repeat split. Qed.
     reference kind (2.3.5); [ref_kind_tys] lists the types a kind
     mentions. *)
 
-Inductive ref_kind :=
-| RVar (t : ty)
-| RMap (k v : ty)
+Inductive ref_kind (A : Type) :=
+| RVar (t : A)
+| RMap (k v : A)
 | RFungibleToken
-| RNonFungibleToken (t : ty)
-| REvent (t : ty)
-| RFunction (params : list ty) (result : ty).
+| RNonFungibleToken (t : A)
+| REvent (t : A)
+| RFunction (params : list A) (result : A).
 
-Inductive param_ty :=
-| PTy (t : ty)
-| PRef (r : ref_kind).
+Arguments RVar {A}.
+Arguments RMap {A}.
+Arguments RFungibleToken {A}.
+Arguments RNonFungibleToken {A}.
+Arguments REvent {A}.
+Arguments RFunction {A}.
 
-Lemma ref_kind_eq_dec (r s : ref_kind) : {r = s} + {r <> s}.
+Inductive param_kind (A : Type) :=
+| PTy (t : A)
+| PRef (r : ref_kind A).
+
+Arguments PTy {A}.
+Arguments PRef {A}.
+
+Lemma ref_kind_eq_dec {A : Type}
+  (eq_dec : forall a b : A, {a = b} + {a <> b}) (r s : ref_kind A) :
+  {r = s} + {r <> s}.
 Proof.
-  decide equality;
-    solve [apply ty_eq_dec | apply (list_eq_dec ty_eq_dec)].
+  decide equality; solve [apply eq_dec | apply (list_eq_dec eq_dec)].
 Defined.
 
-Lemma param_ty_eq_dec (p q : param_ty) : {p = q} + {p <> q}.
-Proof. decide equality; [apply ty_eq_dec | apply ref_kind_eq_dec]. Defined.
+Lemma param_kind_eq_dec {A : Type}
+  (eq_dec : forall a b : A, {a = b} + {a <> b}) (p q : param_kind A) :
+  {p = q} + {p <> q}.
+Proof.
+  decide equality; solve [apply eq_dec | apply (ref_kind_eq_dec eq_dec)].
+Defined.
 
-Definition ref_kind_tys (r : ref_kind) : list ty :=
+Definition ref_kind_tys {A : Type} (r : ref_kind A) : list A :=
   match r with
   | RVar t | RNonFungibleToken t | REvent t => [t]
   | RMap k v => [k; v]
