@@ -15,14 +15,15 @@ they will cover. Written so far:
 
 | Module | Content |
 |--------|---------|
-| `Common/Base.v` | Shared Stdlib imports |
+| `Common/Base.v` | Shared Stdlib imports; boolean refinement types |
 | `Common/Limits.v` | Language limits (2.8) |
 | `Syntax/Lexical.v` | Contract names; the `string-ascii` character set and Unicode scalar values |
 | `Syntax/Principals.v` | Standard and contract principals, contract and trait identifiers, with their rules built in; decidable equality |
 | `Syntax/Types.v` | Sizes; the type grammar with its induction principle; decidable equality on types; sequence kinds and element types; structural predicates (variables, traits, contract literals, sorted tuple fields); storable and interface types; static reference kinds |
 | `Syntax/Values.v` | 128-bit integers; string characters; values with their induction principle; values of a type |
+| `Syntax/Ast.v` | Source types |
 
-Next: the rest of values, the abstract syntax and subtyping. The type
+Next: the rest of the abstract syntax, then subtyping. The type
 depth function waits on clarity-vision#60. No metatheorem is stated yet.
 
 Open spec findings are listed in `docs/findings.md`.
