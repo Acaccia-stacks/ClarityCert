@@ -21,7 +21,8 @@ they will cover. Written so far:
 | `Syntax/Principals.v` | Standard and contract principals, contract and trait identifiers, with their rules built in; decidable equality |
 | `Syntax/Types.v` | Sizes; the type grammar with its induction principle; decidable equality on types; sequence kinds and element types; structural predicates (variables, traits, contract literals, sorted tuple fields); storable and interface types; static reference kinds |
 | `Syntax/Values.v` | 128-bit integers; string characters; values with their induction principle; values of a type |
-| `Syntax/Ast.v` | Source types |
+| `Syntax/Ast.v` | Source types; literals |
+| `Typing/Elaborate.v` | Deployer-relative contracts; the values of literals |
 
 Next: the rest of the abstract syntax, then subtyping. The type
 depth function waits on clarity-vision#60. No metatheorem is stated yet.
@@ -36,7 +37,7 @@ theories/              Rocq sources (logical root: ClarityCert)
   Common/                Shared Rocq imports; language limits
   Syntax/                Lexical rules, principals, types, values, abstract syntax
   Host/                  Abstract chain ABI: crypto, value layer, host functions
-  Typing/                Subtyping, instantiation, macro expansion, typing, static checks
+  Typing/                Elaboration, subtyping, instantiation, macro expansion, typing, static checks
   Primitives/            Signatures and semantics of the 71 core primitives
   Semantics/             Execution state, allowances, evaluation
   Std/                   The standard library prelude (as Clarity AST) and its properties
@@ -61,7 +62,7 @@ chain ABI documents are at the root of `clarity-vision/`.
 |--------------|-------------|
 | 1 Design principles (P1–P8) | `Metatheory/*` (the properties they promise) |
 | 2.2 Lexical structure, keywords and reserved names | `Syntax/Lexical.v`, `Typing/StaticChecks.v` |
-| 2.3.1, 2.3.4–2.3.7 Types, storable/interface types, variables, aliases, reference kinds | `Syntax/Types.v` |
+| 2.3.1, 2.3.4–2.3.7 Types, storable/interface types, variables, aliases, reference kinds | `Syntax/Types.v`, `Typing/Elaborate.v` |
 | 2.3.2 Subtyping, equivalent traits and lub | `Typing/Subtyping.v` |
 | 2.3.3 The `never` type | `Syntax/Types.v`, `Typing/Typing.v` |
 | 2.4.0 Version declaration | `Syntax/Ast.v`, `Typing/StaticChecks.v` |

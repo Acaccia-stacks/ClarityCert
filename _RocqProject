@@ -13,6 +13,7 @@ theories/Host/Crypto.v
 theories/Host/Abi.v
 theories/Host/Interface.v
 
+theories/Typing/Elaborate.v
 theories/Typing/Subtyping.v
 theories/Typing/Instantiation.v
 theories/Typing/Macros.v

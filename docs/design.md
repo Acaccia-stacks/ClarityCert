@@ -54,20 +54,25 @@ is therefore, on a contract the parser accepted:
    and the deploy-order check (2.4.2). Keywords are not checked here:
    the grammar excludes them from binding positions, so binding one is a
    parse error.
-2. `Typing/Subtyping.v`: the subtyping preorder and the join. With
+2. `Typing/Elaborate.v`: the source syntax resolved against the
+   contract being deployed. A deployer-relative contract or trait gets
+   its full name (2.2), an alias its type (2.3.6), a static constant in
+   a size its value, and a name in type position is told apart as an
+   alias, a type variable or a misplaced trait name (C10).
+3. `Typing/Subtyping.v`: the subtyping preorder and the join. With
    equivalent traits (2.3.2), the join is a defined operation, taken over
    a whole set at once, not the order-theoretic least upper bound.
-3. `Typing/Instantiation.v`: least instantiation, overload resolution for
+4. `Typing/Instantiation.v`: least instantiation, overload resolution for
    calls and function references, the capped fold-accumulator fixpoint;
    and, on definitions, the check that overloads do not overlap (2.6.2).
    Reference kinds are matched by kind (2.3.7): identical types for
    variables, maps and NFTs; for `(event T)`, a declared type that is a
    supertype of `T`, which fixes a variable occurring only in event
    references at the declared type.
-4. `Typing/Macros.v`: expansion of macros, typed at their declared
+5. `Typing/Macros.v`: expansion of macros, typed at their declared
    parameter types (2.6.3).
-5. `Typing/Typing.v`: typing judgments on instances.
-6. `Typing/StaticChecks.v`, instance-level part: responses handled,
+6. `Typing/Typing.v`: typing judgments on instances.
+7. `Typing/StaticChecks.v`, instance-level part: responses handled,
    `impl-trait` conformance, read-only enforcement, the function call depth
    limit (2.7.5).
 
