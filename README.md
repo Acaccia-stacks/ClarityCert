@@ -21,7 +21,7 @@ they will cover. Written so far:
 | `Syntax/Principals.v` | Standard and contract principals, contract and trait identifiers, with their rules built in; decidable equality |
 | `Syntax/Types.v` | Sizes; the type grammar with its induction principle; decidable equality on types; sequence kinds and element types; structural predicates (variables, traits, contract literals, sorted tuple fields); storable and interface types; static reference kinds |
 | `Syntax/Values.v` | 128-bit integers; string characters; values with their induction principle; values of a type |
-| `Syntax/Ast.v` | Source types; literals |
+| `Syntax/Ast.v` | Source types; literals; parts of expressions (size terms, allowances, bodies) |
 | `Typing/Elaborate.v` | Deployer-relative contracts; the values of literals |
 
 Next: the rest of the abstract syntax, then subtyping. The type

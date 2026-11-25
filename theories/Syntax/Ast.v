@@ -172,3 +172,91 @@ Inductive literal :=
 (** [.counter], a contract relative to the deployer (2.2). *)
 Example example_contract_literal : literal :=
   LContract (ContractRel {| rval := "counter"%string; rwf := eq_refl |}).
+
+(** ** Parts of expressions
+
+    The pieces an expression is built from that are not themselves
+    expressions (grammar S.7, S.8).
+
+    A size is the number in a type: the [N] of [(buff N)],
+    [(string-ascii N)] or [(list N T)] (2.3.1). Five primitives take one
+    as an argument because it is the bound of their result type (3.3,
+    3.4): [(as-max-len? xs u10)] is an [(optional (list 10 T))], and
+    [(uint-to-buff-be n u16)] a [(buff 16)]. Types are static, so the
+    argument must be known before the code runs: it is a [size_term], a
+    [uint] literal or a name, which is a size variable or a static
+    constant, never an expression (a parse error). A bare [int] literal
+    there parses and is a static type error (C11), so it has its own
+    constructor.
+
+    The calls of these five primitives are dedicated forms, not
+    applications (2.5.5), and share one shape: an expression and a size
+    term. They are listed by [prim_with_size]. The two other dedicated
+    forms, [from-consensus-buff?] and [map], have their own constructors
+    in [expr].
+
+    An allowance (2.5.9) holds expressions, and so does a body ([body =
+    expr, {expr}], S.6), so both are parametric in their expression
+    type, as [ref_kind] is in its type ([Syntax.Types]): [expr] uses
+    [allowance expr] and [body expr]. A body has a first expression, so
+    an empty body cannot be represented. The order of allowances is kept:
+    a violated allowance is reported by its index (2.5.9).
+    [(with-all-assets-unsafe)] is accepted only by [as-contract?], as
+    its only allowance; the grammar encodes both rules, and so does
+    [contract_allowances]. *)
+
+Inductive size_term :=
+| SizeTermUInt (u : uint128)
+| SizeTermName (x : string)
+| SizeTermInt (i : int128).
+
+Inductive prim_with_size :=
+| AsMaxLen
+| UIntToBuffBE
+| UIntToBuffLE
+| IntToBuffBE
+| IntToBuffLE.
+
+(** The arguments, in order: the [amount] for [with-stx] and
+    [with-staking]; the [contract], the [token-name] and the [amount] for
+    [with-ft]; the [contract], the [token-name] and the [identifiers] for
+    [with-nft]. *)
+Inductive allowance (A : Type) :=
+| WithStx (amount : A)
+| WithFt (contract token amount : A)
+| WithNft (contract token ids : A)
+| WithStaking (amount : A)
+| WithPox.
+
+Arguments WithStx {A}. Arguments WithFt {A}. Arguments WithNft {A}.
+Arguments WithStaking {A}. Arguments WithPox {A}.
+
+(** The allowances of [as-contract?]. *)
+Inductive contract_allowances (A : Type) :=
+| AllAssetsUnsafe
+| Allowances (l : list (allowance A)).
+
+Arguments AllAssetsUnsafe {A}. Arguments Allowances {A}.
+
+Inductive body (A : Type) := Body (first : A) (rest : list A).
+
+Arguments Body {A}.
+
+(** The expressions an allowance or a body holds, in evaluation order
+    (2.5.9 for allowances). *)
+Definition allowance_args {A} (a : allowance A) : list A :=
+  match a with
+  | WithStx x | WithStaking x => [x]
+  | WithFt c t x | WithNft c t x => [c; t; x]
+  | WithPox => []
+  end.
+
+Definition body_exprs {A} (b : body A) : list A :=
+  let 'Body e es := b in e :: es.
+
+(** [(as-max-len? s u4)] passes a size term [u4]; in
+    [(as-max-len? s 4)], the [4] is a bare [int], a static type error
+    (3.3). *)
+Example size_term_examples : size_term * size_term :=
+  (SizeTermUInt {| rval := 4%Z; rwf := eq_refl |},
+   SizeTermInt {| rval := 4%Z; rwf := eq_refl |}).
