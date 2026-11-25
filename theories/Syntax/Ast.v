@@ -469,3 +469,74 @@ Example expr_examples : list expr :=
    EPrimWithSize AsMaxLen (EName "s")
      (SizeTermUInt {| rval := 4%Z; rwf := eq_refl |});
    EApp "f" [] (Some (EName "xs"))].
+
+(** ** Definitions and contracts
+
+    The definition forms (grammar S.6, spec 2.4.1), and a contract: its
+    version declaration and its top-level forms (S.1, 2.4.0, 2.4.2).
+
+    The parameters of a definition are (name, kind) pairs, in order:
+    - a public or read-only function takes types only; that they are
+      interface types is a static check (2.3.4);
+    - a private function or a macro may also take a reference kind
+      ([param_kind src_ty], 2.3.7), and a private function may end with
+      a rest parameter [(xs T ...)] (2.6.5), at most one: a macro has
+      none, so it has no field for one.
+    A trait signature names its function with any identifier (S.2):
+    the trait may describe a contract written in another language.
+    A definition holds no definition, so [definition] is not recursive
+    and its generated induction principle is enough.
+
+    The version is a numeral of at least 1 (LX7), and at most [2^128-1]
+    like every unsigned numeral (LX2): it is a [bounded 1 uint_max].
+    Whether the checker implements it is a static check (2.4.0). *)
+
+Record trait_signature := {
+  ts_name : string;
+  ts_params : list src_ty;
+  ts_result : src_ty;
+  ts_read_only : bool;
+}.
+
+Inductive definition :=
+| DConstant (x : string) (e : expr)
+| DType (x : string) (t : src_ty)
+| DDataVar (x : string) (t : src_ty) (e : expr)
+| DMap (x : string) (key value : src_ty)
+| DFungibleToken (x : string) (supply : option expr)
+| DNonFungibleToken (x : string) (t : src_ty)
+| DEvent (x : string) (t : src_ty)
+| DTrait (x : string) (sigs : list trait_signature)
+| DImplTrait (t : src_trait)
+| DPublic (f : string) (params : list (string * src_ty)) (b : body expr)
+| DReadOnly (f : string) (params : list (string * src_ty)) (b : body expr)
+| DPrivate (f : string) (params : list (string * param_kind src_ty))
+    (rest : option (string * src_ty)) (b : body expr)
+| DMacro (f : string) (params : list (string * param_kind src_ty))
+    (b : body expr).
+
+Inductive top_level_form :=
+| TopDef (d : definition)
+| TopExpr (e : expr).
+
+Definition version : Type := bounded 1 uint_max.
+
+Record contract := {
+  ct_version : version;
+  ct_forms : list top_level_form;
+}.
+
+(** A contract of 2.4.1: [(define-constant ERR-NOT-FOUND (err u404))],
+    of type [(response never uint)], after the declaration
+    [(clarity-version 1)]. *)
+Example example_contract_ast : contract := {|
+  ct_version := {| rval := 1%Z; rwf := eq_refl |};
+  ct_forms :=
+    [TopDef (DConstant "ERR-NOT-FOUND"
+       (EErr (ELit (LUInt {| rval := 404%Z; rwf := eq_refl |}))))];
+|}.
+
+(** [(clarity-version 0)] is a parse error (2.4.0): 0 is not a version. *)
+Example version_examples :
+  bounded_of_Z 1 uint_max 0 = None.
+Proof. reflexivity. Qed.
